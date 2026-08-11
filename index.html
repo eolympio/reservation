@@ -1053,9 +1053,24 @@ let etape = 1, confirmation = null, enCours = false, detailOuvert = null;
 const suivi = { ref: '', tel: '', fiche: null, cherche: false };
 
 /* ---------- mes véhicules : enregistrés SUR CE TÉLÉPHONE uniquement ---------- */
+/* En démo, on écrit dans des clés séparées pour ne jamais polluer les vraies données. */
+const CLE_GARAGE = MODE_DEMO ? 'ocr-garage-demo' : 'ocr-garage';
+const CLE_CARNET = MODE_DEMO ? 'ocr-resas-demo' : 'ocr-resas';
 let garage = [];
-try { garage = JSON.parse(localStorage.getItem('ocr-garage') || '[]') || []; } catch (e) {}
-const sauverGarage = () => { try { localStorage.setItem('ocr-garage', JSON.stringify(garage)); } catch (e) {} };
+try { garage = JSON.parse(localStorage.getItem(CLE_GARAGE) || '[]') || []; } catch (e) {}
+const sauverGarage = () => { try { localStorage.setItem(CLE_GARAGE, JSON.stringify(garage)); } catch (e) {} };
+
+/* ---------- mes réservations : retenues SUR CE TÉLÉPHONE uniquement ---------- */
+let carnet = [];
+try { carnet = JSON.parse(localStorage.getItem(CLE_CARNET) || '[]') || []; } catch (e) {}
+const sauverCarnet = () => { try { localStorage.setItem(CLE_CARNET, JSON.stringify(carnet)); } catch (e) {} };
+function retenirResa(ref, tel) {
+  carnet = carnet.filter(r => r.ref !== ref);
+  carnet.push({ ref, tel });
+  if (carnet.length > 10) carnet = carnet.slice(-10);   // les 10 dernières suffisent
+  sauverCarnet();
+}
+function oublierResa(ref) { carnet = carnet.filter(r => r.ref !== ref); sauverCarnet(); }
 const nomVehicule = v => [v.marque, v.modele].filter(Boolean).join(' ') ||
                         (OCR.gabarit(v.gabarit) || {}).nom || 'Véhicule';
 function choisirVehicule(v) {
@@ -1505,6 +1520,7 @@ async function reserver() {
         vehiculeGarde = true;
       }
     }
+    retenirResa(r.reference, resa.tel.trim());   // retrouvable sans rien retaper, sur ce téléphone
     confirmation = { reference: r.reference, date: resa.date, heure: resa.heure,
                      prestation: resa.prestation, gabarit: resa.gabarit, vehiculeGarde,
                      total: T.total, acompte: aRegler, tout: resa.paiement === 'tout', tel: resa.tel.trim() };
@@ -1524,7 +1540,7 @@ function vueConfirmation() {
     <div style="text-align:center;padding:var(--ocr-e6) 0 var(--ocr-e4)">
       <div class="coche-ok" style="color:var(--ocr-succes)">✓</div>
       <h2 class="ocr-h2" style="margin:10px 0 4px">Réservation enregistrée</h2>
-      <p class="ocr-petit">Garde précieusement ta référence :</p>
+      <p class="ocr-petit">Ta référence — gardée automatiquement sur ce téléphone :</p>
     </div>
     <div class="ref-bloc">${esc(c.reference)}</div>
     <div class="ocr-carte">
@@ -1544,8 +1560,8 @@ function vueConfirmation() {
     </div>
     ${c.vehiculeGarde ? `<p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">
       🚗 Ton véhicule est enregistré sur ce téléphone — la prochaine réservation ira deux fois plus vite.</p>` : ''}
-    <p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">Annulation gratuite jusqu’à la veille,
-      depuis « Ma réservation » avec ta référence et ton téléphone.</p>`;
+    <p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">Annulation gratuite jusqu’à la veille.
+      Retrouve tout dans « Ma réservation » — sans rien retaper sur ce téléphone.</p>`;
   $('#vue').querySelector('[data-nouvelle]').addEventListener('click', () => {
     confirmation = null; etape = 1;
     Object.assign(resa, { prestation: null, options: [], heure: null, note: '', vehChoisi: null });
@@ -1566,9 +1582,24 @@ const ETAT_RESA = {
 
 function vueSuivi() {
   const f = suivi.fiche;
+  const liste = carnet.slice().reverse();   // la plus récente d'abord
   $('#vue').innerHTML = `
     <div class="ocr-surtitre">Ma réservation</div>
+    ${liste.length ? `
     <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
+      <div class="ocr-label" style="margin-bottom:10px">Sur ce téléphone</div>
+      ${liste.map(r => `
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+          <button class="ocr-btn ocr-btn--secondaire" data-ouvrir="${esc(r.ref)}"
+                  style="flex:1;display:flex;justify-content:space-between;align-items:center">
+            <span>${esc(r.ref)}</span><span aria-hidden="true">›</span></button>
+          <button class="ocr-btn ocr-btn--fantome ocr-btn--petit" data-oublier="${esc(r.ref)}"
+                  aria-label="Retirer de ce téléphone">✕</button>
+        </div>`).join('')}
+      <p class="ocr-mini" style="margin:8px 0 0">Touche une référence pour voir le détail — rien à retaper.</p>
+    </div>` : ''}
+    <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
+      ${liste.length ? '<div class="ocr-label" style="margin-bottom:10px">Une réservation faite depuis un autre téléphone ?</div>' : ''}
       <label class="ocr-champ"><span class="ocr-label">Référence</span>
         <input class="ocr-saisie" id="sRef" value="${esc(suivi.ref)}" placeholder="OCR-2608-0042"
                autocapitalize="characters" autocomplete="off"></label>
@@ -1586,6 +1617,17 @@ function vueSuivi() {
     $('#' + id).addEventListener('input', e => { suivi[k] = e.target.value; });
   });
   $('#btnChercher').addEventListener('click', chercherResa);
+  $('#vue').querySelectorAll('[data-ouvrir]').forEach(b => b.addEventListener('click', () => {
+    const r = carnet.find(x => x.ref === b.dataset.ouvrir);
+    if (!r) return;
+    suivi.ref = r.ref; suivi.tel = r.tel;
+    chercherResa();
+  }));
+  $('#vue').querySelectorAll('[data-oublier]').forEach(b => b.addEventListener('click', () => {
+    oublierResa(b.dataset.oublier);
+    if (suivi.ref === b.dataset.oublier) { suivi.fiche = null; suivi.ref = ''; suivi.tel = ''; }
+    vueSuivi();
+  }));
   brancherFiche();
 }
 
@@ -1638,6 +1680,8 @@ async function chercherResa() {
       { p_reference: suivi.ref.trim(), p_telephone: suivi.tel.trim() });
     if (error) throw error;
     suivi.fiche = (Array.isArray(data) ? data[0] : data) || false;
+    // retrouvée à la main → retenue sur ce téléphone pour la prochaine fois
+    if (suivi.fiche && suivi.fiche.reference) retenirResa(suivi.fiche.reference, suivi.tel.trim());
   } catch (ex) { toast(ex.message, true); suivi.fiche = null; }
   suivi.cherche = false; vueSuivi();
 }
@@ -1663,6 +1707,10 @@ function brancherFiche() {
   if (MODE_DEMO) {
     $('#bandeau').innerHTML = '<div class="bandeau--demo">✦ Mode démonstration — aucune vraie réservation n’est créée.</div>';
     sb = creerSupabasePublicDemo();
+    if (!carnet.length) carnet = [
+      { ref: 'OCR-2608-0042', tel: '+229 01 97 45 12 30' },
+      { ref: 'OCR-2608-0007', tel: '+229 01 62 30 88 14' },
+    ];
   } else {
     sb = window.supabase.createClient(CONFIG_SUPABASE.url, CONFIG_SUPABASE.cle);
   }
