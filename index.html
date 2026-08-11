@@ -327,6 +327,39 @@
   .ocr-contenu { padding: 0 var(--ocr-e4); }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   MOUVEMENT & RELIEF — partagé par toutes les surfaces
+   Discret, rapide, et respecte prefers-reduced-motion.
+   ───────────────────────────────────────────────────────────── */
+.ocr-btn--primaire {
+  background: linear-gradient(180deg, #E5342F, #C21A18);
+  box-shadow: 0 6px 18px rgba(214,32,30,.26), inset 0 1px 0 rgba(255,255,255,.14);
+}
+.ocr-btn--primaire:hover { background: linear-gradient(180deg, #EC4540, #D6201E); }
+.ocr-btn:active { transform: scale(.97); }
+.ocr-chip[aria-pressed="true"] { box-shadow: 0 4px 14px rgba(214,32,30,.3); }
+
+.voile { animation: ocrVoile .16s ease-out; }
+.boite { animation: ocrBoite .22s cubic-bezier(.2,.9,.3,1.15); }
+.toast { animation: ocrToast .28s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes ocrVoile { from { opacity: 0; } }
+@keyframes ocrBoite { from { opacity: 0; transform: scale(.94) translateY(10px); } }
+@keyframes ocrToast { from { opacity: 0; transform: translateY(12px); } }
+
+@media (hover: hover) {
+  .ocr-carte { transition: border-color .2s ease, transform .2s ease; }
+  .fiche:hover, .presta:hover { transform: translateY(-1px); }
+}
+* { scrollbar-width: thin; scrollbar-color: #2A2A2F transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #2A2A2F; border-radius: 999px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .voile, .boite, .toast { animation: none; }
+  .ocr-btn:active { transform: none; }
+  .fiche:hover, .presta:hover { transform: none; }
+}
+
 
 /* ---- propre à l'app de réservation ---- */
 html,body{margin:0;padding:0;min-height:100dvh}
@@ -341,8 +374,18 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 
 .corps{max-width:680px;margin:0 auto;padding:var(--ocr-e5) var(--ocr-e4) 60px;width:100%;box-sizing:border-box}
 
-.hero{text-align:center;padding:var(--ocr-e6) 0 var(--ocr-e5)}
-.hero img{width:min(78%,300px);margin:0 auto var(--ocr-e4);display:block}
+.hero{text-align:center;padding:var(--ocr-e6) 0 var(--ocr-e5);position:relative}
+.hero::before{content:'';position:absolute;left:50%;top:-20px;transform:translateX(-50%);
+  width:min(90vw,520px);height:300px;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 35%,rgba(214,32,30,.14),transparent 65%)}
+.hero img{width:min(78%,300px);margin:0 auto var(--ocr-e4);display:block;position:relative;
+  animation:heroIn .6s ease-out}
+@keyframes heroIn{from{opacity:0;transform:translateY(10px)}}
+.coche-ok{display:inline-grid;place-items:center;width:74px;height:74px;border-radius:50%;
+  background:rgba(55,194,107,.12);border:2px solid rgba(55,194,107,.5);font-size:34px;
+  animation:pop .5s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+@media (prefers-reduced-motion:reduce){.hero img,.coche-ok{animation:none}}
 .hero h1{font:300 15px/1.6 var(--ocr-titre);letter-spacing:.22em;text-transform:uppercase;
   color:var(--ocr-argent);margin:0 0 6px}
 .hero .ou{font:var(--ocr-t-petit);color:var(--ocr-argent-2)}
@@ -371,6 +414,29 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .jour .js{font:600 11px/1 var(--ocr-titre);letter-spacing:.08em;text-transform:uppercase;display:block}
 .jour .jn{font:700 19px/1.1 var(--ocr-texte);display:block;margin-top:4px}
 .jour .jm{font:var(--ocr-t-mini);display:block;margin-top:2px}
+
+/* cartes lavage : sélection + détail dépliable */
+.lav{background:var(--ocr-surface);border:1px solid var(--ocr-filet);border-radius:var(--ocr-r-m);
+  margin-bottom:8px;overflow:hidden;transition:var(--ocr-transition)}
+.lav--on{border-color:var(--ocr-rouge);background:rgba(214,32,30,.07)}
+.lav-tete{display:flex;gap:var(--ocr-e3);align-items:center;width:100%;text-align:left;cursor:pointer;
+  background:none;border:0;padding:13px 15px;color:var(--ocr-blanc)}
+.lav-detail{all:unset;cursor:pointer;display:block;padding:0 15px 12px;
+  font:var(--ocr-t-mini);color:var(--ocr-rouge-texte);letter-spacing:.04em}
+.lav-liste{list-style:none;margin:0 15px;padding:10px 0 13px;border-top:1px solid rgba(244,244,245,.07)}
+.lav-liste li{font:var(--ocr-t-petit);color:var(--ocr-argent);padding:3.5px 0;display:flex;gap:9px}
+.lav-liste li::before{content:'✓';color:var(--ocr-succes);flex:none}
+
+/* mes véhicules (enregistrés sur le téléphone) */
+.veh{display:flex;gap:var(--ocr-e3);align-items:center;width:100%;text-align:left;cursor:pointer;
+  background:var(--ocr-surface);border:1px solid var(--ocr-filet);border-radius:var(--ocr-r-m);
+  padding:12px 14px;margin-bottom:8px;color:var(--ocr-blanc);transition:var(--ocr-transition)}
+.veh[aria-pressed="true"]{border-color:var(--ocr-rouge);background:rgba(214,32,30,.08)}
+.veh .vx{all:unset;cursor:pointer;padding:6px 8px;color:var(--ocr-argent-2);font-size:13px}
+
+.etape-num{width:26px;height:26px;border-radius:50%;background:rgba(214,32,30,.14);
+  border:1px solid rgba(214,32,30,.4);color:var(--ocr-rouge-texte);display:grid;place-items:center;
+  font:700 13px/1 var(--ocr-texte);flex:none}
 
 .heures{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-top:var(--ocr-e4)}
 .heure{padding:11px 0;text-align:center;cursor:pointer;font:600 14px/1 var(--ocr-texte);
@@ -893,13 +959,12 @@ function creerSupabasePublicDemo() {
   const decale = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
   let seq = 98;
 
-  // Aujourd'hui : une baie prise à 10 h, les DEUX baies prises autour de 15 h.
+  // Comme en vrai : une seule baie active (la B est en travaux).
+  // Demain, la baie est prise à 10 h : tout ce qui chevauche est bloqué.
+  const baies = [{ id: 'A', nom: 'Baie A' }];
   const occupes = {
-    [auj()]: [
-      { heure: '10:00:00', duree_min: 75 },
-      { heure: '15:00:00', duree_min: 75 },
-      { heure: '15:00:00', duree_min: 60 },
-    ],
+    [auj()]: [{ heure: '15:00:00', duree_min: 75 }],
+    [decale(1)]: [{ heure: '10:00:00', duree_min: 75 }],
   };
 
   const resas = {
@@ -916,6 +981,7 @@ function creerSupabasePublicDemo() {
   };
 
   const RPC = {
+    ocr_baies_actives: () => baies,
     ocr_creneaux_occupes: a => (occupes[a.p_date] || []),
     ocr_creer_reservation(a) {
       if (!String(a.p_nom || '').trim()) throw new Error('Nom obligatoire');
@@ -942,6 +1008,10 @@ function creerSupabasePublicDemo() {
       if (r.date_prevue <= auj())
         throw new Error('L’annulation en ligne est possible jusqu’à la veille. Pour aujourd’hui, contacte-nous sur WhatsApp');
       r.statut = 'annulee';
+      // le créneau se libère, comme en vrai
+      const o = occupes[r.date_prevue] || [];
+      const i = o.findIndex(x => x.heure === r.heure_prevue);
+      if (i !== -1) o.splice(i, 1);
       return [{ reference: r.reference, statut: 'annulee' }];
     },
   };
@@ -977,9 +1047,21 @@ const jourLong = d => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { we
 let sb;
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
-               nom: '', tel: '', marque: '', modele: '', immat: '', note: '' };
-let etape = 1, confirmation = null, enCours = false;
+               nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
+               vehChoisi: null, vehSauver: true, paiement: 'acompte' };   // 'acompte' | 'tout'
+let etape = 1, confirmation = null, enCours = false, detailOuvert = null;
 const suivi = { ref: '', tel: '', fiche: null, cherche: false };
+
+/* ---------- mes véhicules : enregistrés SUR CE TÉLÉPHONE uniquement ---------- */
+let garage = [];
+try { garage = JSON.parse(localStorage.getItem('ocr-garage') || '[]') || []; } catch (e) {}
+const sauverGarage = () => { try { localStorage.setItem('ocr-garage', JSON.stringify(garage)); } catch (e) {} };
+const nomVehicule = v => [v.marque, v.modele].filter(Boolean).join(' ') ||
+                        (OCR.gabarit(v.gabarit) || {}).nom || 'Véhicule';
+function choisirVehicule(v) {
+  Object.assign(resa, { vehChoisi: v.id, gabarit: v.gabarit,
+    marque: v.marque || '', modele: v.modele || '', immat: v.immat || '' });
+}
 
 function toast(msg, erreur) {
   const t = document.createElement('div');
@@ -995,17 +1077,23 @@ const lienWA = m => 'https://wa.me/' + OCR.MARQUE.whatsapp + (m ? '?text=' + enc
 async function creneauxDispo(date, prestationId, gabaritId) {
   const duree = OCR.duree(prestationId, gabaritId);
   if (duree == null) return [];
-  const { data, error } = await sb.rpc('ocr_creneaux_occupes', { p_date: date });
-  if (error) throw new Error('Disponibilités injoignables');
+  // La capacité réelle = les baies actives en ce moment (travaux, pannes…).
+  const [occRep, baiesRep] = await Promise.all([
+    sb.rpc('ocr_creneaux_occupes', { p_date: date }),
+    sb.rpc('ocr_baies_actives'),
+  ]);
+  if (occRep.error || baiesRep.error) throw new Error('Disponibilités injoignables');
+  const nbBaies = (baiesRep.data || []).length;
+  if (!nbBaies) return [];
   const buf = OCR.CONFIG.battementMin;
-  const occ = (data || []).map(r => { const a = OCR.hm2min(heureCourte(r.heure)); return [a, a + (r.duree_min || 60) + buf]; });
+  const occ = (occRep.data || []).map(r => { const a = OCR.hm2min(heureCourte(r.heure)); return [a, a + (r.duree_min || 60) + buf]; });
   const mnt = new Date();
   const minMin = date === auj() ? mnt.getHours() * 60 + mnt.getMinutes() + 30 : 0;
   return OCR.creneaux(prestationId, gabaritId).filter(hm => {
     const a = OCR.hm2min(hm), b = a + duree + buf;
     if (a < minMin) return false;
     for (let t = a; t < b; t += 5)
-      if (occ.filter(([x, y]) => t >= x && t < y).length >= OCR.CONFIG.baies) return false;
+      if (occ.filter(([x, y]) => t >= x && t < y).length >= nbBaies) return false;
     return true;
   });
 }
@@ -1039,20 +1127,35 @@ function vueAccueil() {
     </div>
 
     <div class="ocr-carte">
+      <div class="ocr-surtitre">Comment ça marche</div>
+      ${[['Choisis ton lavage et ton créneau', 'Seules les heures réellement libres te sont proposées.'],
+         ['Confirme avec l’acompte de 20 %', 'Par Mobile Money (MTN / Moov) — ou paie tout d’un coup si quelqu’un d’autre dépose le véhicule.'],
+         ['Dépose ton véhicule à l’heure', 'Il est pris en charge tout de suite — pas de file d’attente.'],
+         ['Chaque passage compte', 'Ta fidélité est suivie automatiquement : le 10ᵉ lavage est offert.'],
+        ].map(([t, d], i) => `
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0${i < 3 ? ';border-bottom:1px solid rgba(244,244,245,.06)' : ''}">
+          <span class="etape-num">${i + 1}</span>
+          <span style="min-width:0">
+            <span style="font:600 14px/1.3 var(--ocr-texte);display:block;color:var(--ocr-blanc)">${t}</span>
+            <span class="ocr-mini" style="margin-top:2px;display:block">${d}</span>
+          </span>
+        </div>`).join('')}
+      <p class="ocr-mini" style="margin:12px 0 0">Annulation gratuite jusqu’à la veille, directement depuis l’app.</p>
+    </div>
+
+    <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
       <div class="ocr-surtitre">Nos tarifs</div>
-      <p class="ocr-mini" style="margin:8px 0 var(--ocr-e4)">Choisis ton véhicule pour voir les prix.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--ocr-e4)">
+      <p class="ocr-mini" style="margin:8px 0 var(--ocr-e4)">Le prix dépend de la taille du véhicule — trouve la tienne :</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         ${OCR.GABARITS.map(x => `<button class="ocr-chip" data-gab="${x.id}" aria-pressed="${resa.gabarit === x.id}">${esc(x.court)}</button>`).join('')}
       </div>
-      ${OCR.PRESTATIONS.filter(p => p.famille !== 'devis').map(p => {
-        const prix = OCR.prix(p.id, resa.gabarit);
-        if (prix == null && p.famille === 'moto' !== (resa.gabarit === 'moto')) return '';
-        return `<div class="presta" style="cursor:default">
-          <span style="min-width:0"><span class="nm">${esc(p.nom)}${p.populaire ? ' <span class="ocr-pastille ocr-pastille--marque" style="font-size:9px;vertical-align:2px">Populaire</span>' : ''}</span>
-            <span class="du">${esc(p.mention || '')}${OCR.duree(p.id, resa.gabarit) ? ' · ' + OCR.dureeTexte(OCR.duree(p.id, resa.gabarit)) : ''}</span></span>
-          <span class="pr">${prix == null ? 'Sur devis' : OCR.fcfa(prix)}</span>
-        </div>`;
-      }).join('')}
+      <p class="ocr-mini" style="margin:0 0 var(--ocr-e4)">${(() => { const g = OCR.gabarit(resa.gabarit);
+        return 'Ex. : ' + esc(g.ex) + (g.places ? ' · ' + esc(g.places) : ''); })()}</p>
+      ${OCR.PRESTATIONS.filter(p => {
+        if (p.famille === 'devis') return false;
+        if ((p.famille === 'moto') !== (resa.gabarit === 'moto')) return false;
+        return true;
+      }).map(p => carteLavage(p, false)).join('')}
       <p class="ocr-mini" style="margin:var(--ocr-e4) 0 0">Lavage moteur, polissage et céramique : sur devis —
         <a href="${lienWA('Bonjour OCR Brillance, je voudrais un devis.')}" target="_blank" rel="noopener" style="color:var(--ocr-rouge-texte)">écris-nous sur WhatsApp</a>.</p>
     </div>
@@ -1070,8 +1173,9 @@ function vueAccueil() {
     </div>`;
 
   $('#vue').querySelectorAll('[data-gab]').forEach(b => b.addEventListener('click', () => {
-    resa.gabarit = b.dataset.gab; vueAccueil();
+    resa.gabarit = b.dataset.gab; resa.vehChoisi = 'nouveau'; vueAccueil();
   }));
+  brancherDetails(vueAccueil);
   $('#vue').querySelector('[data-go]').addEventListener('click', () => { vue = 'reserver'; etape = 1; rendre(); window.scrollTo(0, 0); });
 }
 
@@ -1088,27 +1192,94 @@ function vueReserver() {
 const barreEtapes = () => `<div class="etapes">${[1, 2, 3].map(n =>
   `<span class="${n <= etape ? 'faite' : ''}"></span>`).join('')}</div>`;
 
+/* Carte lavage : résumé toujours visible, contenu complet dépliable. */
+function carteLavage(p, selectionnable) {
+  const prix = OCR.prix(p.id, resa.gabarit);
+  const ouvert = detailOuvert === p.id;
+  const choisie = selectionnable && resa.prestation === p.id;
+  return `<div class="lav ${choisie ? 'lav--on' : ''}">
+    <${selectionnable ? `button class="lav-tete" data-presta="${p.id}"` : 'div class="lav-tete" style="cursor:default"'}>
+      ${selectionnable ? `<span class="coche" style="width:20px;height:20px;border-radius:6px;border:2px solid ${choisie ? 'var(--ocr-rouge)' : 'var(--ocr-filet)'};
+        background:${choisie ? 'var(--ocr-rouge)' : 'transparent'};display:grid;place-items:center;font-size:11px;color:#fff;flex:none">${choisie ? '✓' : ''}</span>` : ''}
+      <span style="min-width:0">
+        <span style="font:600 14.5px/1.25 var(--ocr-texte);display:block">${esc(p.nom)}${p.populaire ? ' <span class="ocr-pastille ocr-pastille--marque" style="font-size:9px;vertical-align:2px">Populaire</span>' : ''}</span>
+        <span style="font:var(--ocr-t-mini);color:var(--ocr-argent-2);display:block;margin-top:3px">${esc(p.resume || p.mention || '')}</span>
+      </span>
+      <span style="margin-left:auto;text-align:right;flex:none">
+        <span style="font:700 15px/1 var(--ocr-texte);display:block">${prix == null ? 'Sur devis' : OCR.fcfa(prix)}</span>
+        ${OCR.duree(p.id, resa.gabarit) ? `<span class="ocr-mini">${OCR.dureeTexte(OCR.duree(p.id, resa.gabarit))}</span>` : ''}
+      </span>
+    </${selectionnable ? 'button' : 'div'}>
+    <button class="lav-detail" data-detail="${p.id}">${ouvert ? 'Masquer le détail ▲' : 'Ce qui est fait, en détail ▼'}</button>
+    ${ouvert ? `<ul class="lav-liste">${(p.contenu || []).map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+      ${p.mention ? `<p class="ocr-mini" style="margin:0 15px 13px;color:var(--ocr-ambre)">${esc(p.mention)}</p>` : ''}` : ''}
+  </div>`;
+}
+
+function brancherDetails(revue) {
+  $('#vue').querySelectorAll('[data-detail]').forEach(b => b.addEventListener('click', () => {
+    detailOuvert = detailOuvert === b.dataset.detail ? null : b.dataset.detail;
+    revue();
+  }));
+}
+
 function vueEtapePrestation() {
+  // premier passage : si des véhicules sont enregistrés, le premier est proposé
+  if (garage.length && !resa.vehChoisi) choisirVehicule(garage[0]);
+  const nouveau = !garage.length || resa.vehChoisi === 'nouveau';
   const opts = resa.prestation ? OCR.optionsPour(resa.prestation).filter(o => !o.comprise) : [];
   const total = resa.prestation ? OCR.total(resa.prestation, resa.gabarit, resa.options, false).total : 0;
 
   $('#vue').innerHTML = `
     ${barreEtapes()}
     <div class="ocr-surtitre">1 · Ton véhicule</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:var(--ocr-e4) 0 var(--ocr-e5)">
-      ${OCR.GABARITS.map(x => `<button class="ocr-chip" data-gab="${x.id}" aria-pressed="${resa.gabarit === x.id}">${esc(x.court)}</button>`).join('')}
-    </div>
+    <p class="ocr-mini" style="margin:8px 0 var(--ocr-e4)">Le prix dépend de la taille — choisis bien, comme ça
+      <strong style="color:var(--ocr-blanc)">aucune surprise au paiement</strong>.</p>
 
-    <div class="ocr-surtitre">Le lavage</div>
-    <div style="margin-top:var(--ocr-e4)">
-    ${OCR.PRESTATIONS.filter(p => p.famille !== 'devis' && OCR.prix(p.id, resa.gabarit) != null).map(p => `
-      <button class="presta" data-presta="${p.id}" aria-pressed="${resa.prestation === p.id}">
-        <span class="coche">${resa.prestation === p.id ? '✓' : ''}</span>
-        <span style="min-width:0"><span class="nm">${esc(p.nom)}${p.populaire ? ' <span class="ocr-pastille ocr-pastille--marque" style="font-size:9px;vertical-align:2px">Populaire</span>' : ''}</span>
-          <span class="du">${esc(p.mention || '')} · ${OCR.dureeTexte(OCR.duree(p.id, resa.gabarit))}</span></span>
-        <span class="pr">${OCR.fcfa(OCR.prix(p.id, resa.gabarit))}</span>
-      </button>`).join('')}
-    </div>
+    ${garage.length ? `
+      ${garage.map(v => `
+        <div class="veh" role="button" tabindex="0" data-veh="${v.id}" aria-pressed="${resa.vehChoisi === v.id}">
+          <span style="min-width:0">
+            <span style="font-weight:600;display:block">${esc(nomVehicule(v))}</span>
+            <span class="ocr-mini">${esc((OCR.gabarit(v.gabarit) || {}).nom || '')}${v.immat ? ' · ' + esc(v.immat) : ''}</span>
+          </span>
+          <span style="flex:1"></span>
+          <button class="vx" data-vsuppr="${v.id}" aria-label="Retirer ce véhicule">✕</button>
+        </div>`).join('')}
+      <button class="veh" data-veh="nouveau" aria-pressed="${resa.vehChoisi === 'nouveau'}">
+        <span style="font-weight:600">＋ Autre véhicule</span>
+      </button>` : ''}
+
+    ${nouveau ? `
+      <div style="margin:${garage.length ? 'var(--ocr-e4)' : '0'} 0 0">
+      ${OCR.GABARITS.map(g => `
+        <button class="veh" data-gab="${g.id}" aria-pressed="${resa.gabarit === g.id}">
+          <span style="min-width:0">
+            <span style="font-weight:600;display:block">${esc(g.nom)}</span>
+            <span class="ocr-mini">${esc(g.ex)}${g.places ? ' · ' + esc(g.places) : ''}</span>
+          </span>
+        </button>`).join('')}
+      </div>
+      <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
+        <p class="ocr-mini" style="margin:0 0 var(--ocr-e3)">Facultatif — mais ça nous aide à préparer ton passage :</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+          <label class="ocr-champ"><span class="ocr-label">Marque</span>
+            <input class="ocr-saisie" id="vMarque" value="${esc(resa.marque)}" placeholder="Toyota"></label>
+          <label class="ocr-champ"><span class="ocr-label">Modèle</span>
+            <input class="ocr-saisie" id="vModele" value="${esc(resa.modele)}" placeholder="RAV4"></label>
+        </div>
+        <label class="ocr-champ" style="margin-bottom:var(--ocr-e3)"><span class="ocr-label">Immatriculation</span>
+          <input class="ocr-saisie" id="vImmat" value="${esc(resa.immat)}" placeholder="1234 AB 1"></label>
+        <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="vSauver" ${resa.vehSauver ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--ocr-rouge)">
+          <span class="ocr-petit">Enregistrer ce véhicule sur ce téléphone pour la prochaine fois</span>
+        </label>
+      </div>` : ''}
+
+    <div class="ocr-surtitre" style="margin-top:var(--ocr-e5)">Le lavage</div>
+    <p class="ocr-mini" style="margin:8px 0 var(--ocr-e4)">Appuie sur « Ce qui est fait » pour voir tout ce que comprend chaque formule.</p>
+    ${OCR.PRESTATIONS.filter(p => p.famille !== 'devis' && OCR.prix(p.id, resa.gabarit) != null)
+      .map(p => carteLavage(p, true)).join('')}
 
     ${opts.length ? `<div class="ocr-surtitre" style="margin-top:var(--ocr-e5)">Options</div>
     <div style="margin-top:var(--ocr-e4)">
@@ -1121,22 +1292,48 @@ function vueEtapePrestation() {
 
     <div class="total-collant">
       <div>
-        <div class="ocr-mini">Total</div>
+        <div class="ocr-mini">Total · ${esc((OCR.gabarit(resa.gabarit) || {}).court || '')}</div>
         <div style="font:700 20px/1 var(--ocr-texte);font-variant-numeric:tabular-nums">${OCR.fcfa(total)}</div>
       </div>
       <div style="flex:1"></div>
       <button class="ocr-btn ocr-btn--primaire" id="btnSuite" ${resa.prestation ? '' : 'disabled'}>Choisir l’heure ›</button>
     </div>`;
 
+  // véhicules enregistrés
+  $('#vue').querySelectorAll('[data-veh]').forEach(el => el.addEventListener('click', e => {
+    if (e.target.closest('[data-vsuppr]')) return;
+    const id = el.dataset.veh;
+    if (id === 'nouveau') { resa.vehChoisi = 'nouveau'; }
+    else { choisirVehicule(garage.find(v => v.id === id)); }
+    if (resa.prestation && OCR.prix(resa.prestation, resa.gabarit) == null) resa.prestation = null;
+    resa.heure = null; vueEtapePrestation();
+  }));
+  $('#vue').querySelectorAll('[data-vsuppr]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const v = garage.find(x => x.id === b.dataset.vsuppr);
+    if (!confirm('Retirer ' + nomVehicule(v) + ' de ce téléphone ?')) return;
+    garage = garage.filter(x => x.id !== b.dataset.vsuppr);
+    sauverGarage();
+    if (resa.vehChoisi === b.dataset.vsuppr) resa.vehChoisi = null;
+    vueEtapePrestation();
+  }));
+  // gabarits (nouveau véhicule)
   $('#vue').querySelectorAll('[data-gab]').forEach(b => b.addEventListener('click', () => {
     resa.gabarit = b.dataset.gab;
     if (resa.prestation && OCR.prix(resa.prestation, resa.gabarit) == null) resa.prestation = null;
     resa.heure = null; vueEtapePrestation();
   }));
+  ['vMarque:marque', 'vModele:modele', 'vImmat:immat'].forEach(pr => {
+    const [id, k] = pr.split(':');
+    const el = $('#' + id); if (el) el.addEventListener('input', e => { resa[k] = e.target.value; });
+  });
+  const cs = $('#vSauver'); if (cs) cs.addEventListener('change', e => { resa.vehSauver = e.target.checked; });
+  // lavages + détails + options
   $('#vue').querySelectorAll('[data-presta]').forEach(b => b.addEventListener('click', () => {
     resa.prestation = resa.prestation === b.dataset.presta ? null : b.dataset.presta;
     resa.options = []; resa.heure = null; vueEtapePrestation();
   }));
+  brancherDetails(vueEtapePrestation);
   $('#vue').querySelectorAll('[data-opt]').forEach(b => b.addEventListener('click', () => {
     const i = resa.options.indexOf(b.dataset.opt);
     i === -1 ? resa.options.push(b.dataset.opt) : resa.options.splice(i, 1);
@@ -1218,46 +1415,53 @@ function vueEtapeCoordonnees() {
       <label class="ocr-champ"><span class="ocr-label">Téléphone (WhatsApp) *</span>
         <input class="ocr-saisie" id="fTel" inputmode="tel" value="${esc(resa.tel)}" placeholder="+229 01 XX XX XX XX" autocomplete="tel">
         <span class="ocr-aide">Il sert à confirmer ta réservation et à ta fidélité.</span></label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
-        <label class="ocr-champ"><span class="ocr-label">Marque</span>
-          <input class="ocr-saisie" id="fMarque" value="${esc(resa.marque)}" placeholder="Toyota"></label>
-        <label class="ocr-champ"><span class="ocr-label">Modèle</span>
-          <input class="ocr-saisie" id="fModele" value="${esc(resa.modele)}" placeholder="RAV4"></label>
-      </div>
       <label class="ocr-champ" style="margin-bottom:0"><span class="ocr-label">Remarque</span>
-        <input class="ocr-saisie" id="fNote" value="${esc(resa.note)}" placeholder="Taches sur les sièges arrière…"></label>
+        <input class="ocr-saisie" id="fNote" value="${esc(resa.note)}" placeholder="Mon chauffeur déposera le véhicule…"></label>
     </div>
 
     <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
       <div class="ocr-surtitre">Récapitulatif</div>
       ${[[p.nom + (optsNoms ? ' + ' + optsNoms : ''), ''],
          [jourLong(resa.date) + ' à ' + resa.heure, OCR.dureeTexte(OCR.duree(resa.prestation, resa.gabarit))],
-         ['Véhicule', OCR.gabarit(resa.gabarit).nom],
+         ['Véhicule', ([resa.marque, resa.modele].filter(Boolean).join(' ') || OCR.gabarit(resa.gabarit).nom) +
+                      (resa.immat ? ' · ' + resa.immat : '') + ' — ' + OCR.gabarit(resa.gabarit).court],
          ['Total', OCR.fcfa(T.total)],
         ].map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid rgba(244,244,245,.06)">
           <span class="ocr-petit">${esc(k)}</span><span style="font-weight:600;white-space:nowrap">${esc(v)}</span></div>`).join('')}
-      <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0 0">
-        <span style="font:600 14px/1.3 var(--ocr-texte);color:var(--ocr-blanc)">Acompte pour confirmer</span>
-        <span style="font:700 16px/1 var(--ocr-texte);color:var(--ocr-rouge-texte)">${OCR.fcfa(ac)}</span>
-      </div>
-      <p class="ocr-mini" style="margin:10px 0 0">Après ta réservation, l’équipe te contacte sur WhatsApp pour régler
-        l’acompte par Mobile Money (MTN / Moov). Le reste se paie sur place. Annulation gratuite jusqu’à la veille.</p>
+      <div class="ocr-mini" style="margin:14px 0 8px;letter-spacing:.14em;text-transform:uppercase">Comment veux-tu payer ?</div>
+      <button class="veh" data-pay="acompte" aria-pressed="${resa.paiement === 'acompte'}">
+        <span style="min-width:0">
+          <span style="font-weight:600;display:block">Acompte de ${OCR.fcfa(ac)} maintenant</span>
+          <span class="ocr-mini">Le reste (${OCR.fcfa(T.total - ac)}) se règle à la fin du lavage.</span>
+        </span>
+      </button>
+      <button class="veh" data-pay="tout" aria-pressed="${resa.paiement === 'tout'}" style="margin-bottom:0">
+        <span style="min-width:0">
+          <span style="font-weight:600;display:block">Tout payer d’un coup — ${OCR.fcfa(T.total)}</span>
+          <span class="ocr-mini">Plus rien à régler sur place. Idéal si ton chauffeur dépose le véhicule.</span>
+        </span>
+      </button>
+      <p class="ocr-mini" style="margin:12px 0 0">Après ta réservation, l’équipe te contacte sur WhatsApp pour le
+        règlement par Mobile Money (MTN / Moov). Annulation gratuite jusqu’à la veille.</p>
     </div>
 
     <div class="total-collant">
       <div>
-        <div class="ocr-mini">Acompte</div>
-        <div style="font:700 20px/1 var(--ocr-texte);font-variant-numeric:tabular-nums">${OCR.fcfa(ac)}</div>
+        <div class="ocr-mini">${resa.paiement === 'tout' ? 'À régler (totalité)' : 'Acompte'}</div>
+        <div style="font:700 20px/1 var(--ocr-texte);font-variant-numeric:tabular-nums">${OCR.fcfa(resa.paiement === 'tout' ? T.total : ac)}</div>
       </div>
       <div style="flex:1"></div>
       <button class="ocr-btn ocr-btn--primaire" id="btnConfirmer">Réserver</button>
     </div>`;
 
   $('#btnRetour').addEventListener('click', () => { etape = 2; rendre(); });
-  ['fNom:nom', 'fTel:tel', 'fMarque:marque', 'fModele:modele', 'fNote:note'].forEach(pr => {
+  ['fNom:nom', 'fTel:tel', 'fNote:note'].forEach(pr => {
     const [id, k] = pr.split(':');
     $('#' + id).addEventListener('input', e => { resa[k] = e.target.value; });
   });
+  $('#vue').querySelectorAll('[data-pay]').forEach(b => b.addEventListener('click', () => {
+    resa.paiement = b.dataset.pay; vueEtapeCoordonnees();
+  }));
   $('#btnConfirmer').addEventListener('click', reserver);
 }
 
@@ -1275,20 +1479,35 @@ async function reserver() {
       etape = 2; resa.heure = null; rendre();
       throw new Error('Ce créneau vient d’être pris — choisis-en un autre.');
     }
+    const aRegler = resa.paiement === 'tout' ? T.total : OCR.acompte(T.total, false);
     const { data, error } = await sb.rpc('ocr_creer_reservation', {
       p_nom: resa.nom.trim(), p_telephone: resa.tel.trim(),
       p_prestation: resa.prestation, p_gabarit: resa.gabarit, p_options: resa.options,
       p_date: resa.date, p_heure: resa.heure,
       p_duree_min: OCR.duree(resa.prestation, resa.gabarit),
-      p_montant: T.total, p_acompte: OCR.acompte(T.total, false),
+      p_montant: T.total, p_acompte: aRegler,
       p_marque: resa.marque.trim() || null, p_modele: resa.modele.trim() || null,
+      p_immat: resa.immat.trim() || null,
       p_note: resa.note.trim() || null, p_canal: 'app',
     });
     if (error) throw error;
     const r = Array.isArray(data) ? data[0] : data;
+    // véhicule mémorisé sur ce téléphone, si demandé et pas déjà connu
+    let vehiculeGarde = false;
+    const estNouveau = resa.vehChoisi === 'nouveau' || resa.vehChoisi == null;
+    if (resa.vehSauver && estNouveau && (resa.marque || resa.modele || resa.immat)) {
+      const doublon = garage.some(v => (v.immat && resa.immat && v.immat.trim() === resa.immat.trim()) ||
+        (v.marque === resa.marque && v.modele === resa.modele && v.gabarit === resa.gabarit));
+      if (!doublon) {
+        garage.push({ id: 'v' + Math.random().toString(36).slice(2, 9), gabarit: resa.gabarit,
+                      marque: resa.marque.trim(), modele: resa.modele.trim(), immat: resa.immat.trim() });
+        sauverGarage();
+        vehiculeGarde = true;
+      }
+    }
     confirmation = { reference: r.reference, date: resa.date, heure: resa.heure,
-                     prestation: resa.prestation, gabarit: resa.gabarit,
-                     total: T.total, acompte: OCR.acompte(T.total, false), tel: resa.tel.trim() };
+                     prestation: resa.prestation, gabarit: resa.gabarit, vehiculeGarde,
+                     total: T.total, acompte: aRegler, tout: resa.paiement === 'tout', tel: resa.tel.trim() };
     rendre(); window.scrollTo(0, 0);
   } catch (ex) {
     toast(ex.message || 'Réservation impossible', true);
@@ -1303,7 +1522,7 @@ function vueConfirmation() {
   const p = OCR.prestation(c.prestation);
   $('#vue').innerHTML = `
     <div style="text-align:center;padding:var(--ocr-e6) 0 var(--ocr-e4)">
-      <div style="font-size:44px">✓</div>
+      <div class="coche-ok" style="color:var(--ocr-succes)">✓</div>
       <h2 class="ocr-h2" style="margin:10px 0 4px">Réservation enregistrée</h2>
       <p class="ocr-petit">Garde précieusement ta référence :</p>
     </div>
@@ -1312,21 +1531,24 @@ function vueConfirmation() {
       ${[[p.nom, OCR.gabarit(c.gabarit).nom],
          [jourLong(c.date) + ' à ' + c.heure, ''],
          ['Total', OCR.fcfa(c.total)],
-         ['Acompte pour confirmer', OCR.fcfa(c.acompte)],
+         [c.tout ? 'À régler pour confirmer (totalité)' : 'Acompte pour confirmer', OCR.fcfa(c.acompte)],
         ].map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid rgba(244,244,245,.06)">
           <span class="ocr-petit">${esc(k)}</span><span style="font-weight:600">${esc(v)}</span></div>`).join('')}
-      <p class="ocr-petit" style="margin:12px 0 0">L’équipe te contacte sur WhatsApp pour l’acompte par Mobile Money.
-        Tu peux aussi nous devancer :</p>
+      ${c.tout ? '<p class="ocr-petit" style="margin:12px 0 0">Une fois réglé, plus rien à payer sur place — la personne qui dépose le véhicule n’a rien à avancer.</p>'
+               : '<p class="ocr-petit" style="margin:12px 0 0">L’équipe te contacte sur WhatsApp pour l’acompte par Mobile Money. Tu peux aussi nous devancer :</p>'}
       <a class="ocr-btn ocr-btn--primaire ocr-btn--bloc" style="margin-top:12px" target="_blank" rel="noopener"
-         href="${lienWA('Bonjour, je viens de réserver (' + c.reference + '). Je voudrais régler l’acompte de ' + OCR.fcfa(c.acompte) + '.')}">
-        Régler l’acompte sur WhatsApp</a>
+         href="${lienWA('Bonjour, je viens de réserver (' + c.reference + '). Je voudrais régler ' +
+           (c.tout ? 'la totalité, soit ' : 'l’acompte de ') + OCR.fcfa(c.acompte) + ', par Mobile Money.')}">
+        ${c.tout ? 'Tout régler sur WhatsApp' : 'Régler l’acompte sur WhatsApp'}</a>
       <button class="ocr-btn ocr-btn--fantome ocr-btn--bloc" style="margin-top:9px" data-nouvelle>Nouvelle réservation</button>
     </div>
+    ${c.vehiculeGarde ? `<p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">
+      🚗 Ton véhicule est enregistré sur ce téléphone — la prochaine réservation ira deux fois plus vite.</p>` : ''}
     <p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">Annulation gratuite jusqu’à la veille,
       depuis « Ma réservation » avec ta référence et ton téléphone.</p>`;
   $('#vue').querySelector('[data-nouvelle]').addEventListener('click', () => {
     confirmation = null; etape = 1;
-    Object.assign(resa, { prestation: null, options: [], heure: null, note: '' });
+    Object.assign(resa, { prestation: null, options: [], heure: null, note: '', vehChoisi: null });
     rendre(); window.scrollTo(0, 0);
   });
 }
@@ -1371,17 +1593,31 @@ function ficheResa(f) {
   const [lab, ton] = ETAT_RESA[f.statut] || [f.statut, 'neutre'];
   const p = OCR.prestation(f.prestation);
   const annulable = ['en_attente_paiement', 'confirmee'].includes(f.statut) && f.date_prevue > auj();
+  const total = f.montant_total || 0;
+  const avance = f.acompte_attendu || 0;
+  const reste = Math.max(0, total - avance);
+  const toutRegle = f.statut === 'confirmee' && total > 0 && reste === 0;
   return `<div class="ocr-carte">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <strong style="font:700 17px/1.2 var(--ocr-texte)">${esc(f.reference)}</strong>
       <span class="ocr-pastille ocr-pastille--${ton}">${lab}</span>
+      ${toutRegle ? '<span class="ocr-pastille ocr-pastille--succes">Tout est réglé</span>' : ''}
     </div>
     ${[[p ? p.nom : f.prestation, (OCR.gabarit(f.gabarit) || {}).nom || ''],
        [jourLong(f.date_prevue) + ' à ' + heureCourte(f.heure_prevue), ''],
-       ['Total', f.montant_total ? OCR.fcfa(f.montant_total) : 'Sur devis'],
-       ['Acompte', OCR.fcfa(f.acompte_attendu || 0)],
+       ['Total', total ? OCR.fcfa(total) : 'Sur devis'],
+       [avance >= total && total > 0 ? 'Réglé à la réservation' : 'Avance à la réservation', OCR.fcfa(avance)],
+       ...(f.statut === 'confirmee' && reste > 0 ? [['Reste à payer', OCR.fcfa(reste)]] : []),
       ].map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid rgba(244,244,245,.06)">
         <span class="ocr-petit">${esc(k)}</span><span style="font-weight:600">${esc(v)}</span></div>`).join('')}
+    ${toutRegle ? `<p class="ocr-petit" style="margin:12px 0 0;color:var(--ocr-succes)">
+        ✓ Plus rien à payer — la personne qui dépose le véhicule n’a rien à avancer.</p>` : ''}
+    ${f.statut === 'confirmee' && reste > 0 ? `
+      <a class="ocr-btn ocr-btn--secondaire ocr-btn--bloc" style="margin-top:12px" target="_blank" rel="noopener"
+         href="${lienWA('Bonjour, je voudrais solder le reste de ma réservation ' + f.reference + ', soit ' + OCR.fcfa(reste) + ', par Mobile Money — sans passer par la caisse sur place.')}">
+        Solder les ${OCR.fcfa(reste)} à distance</a>
+      <p class="ocr-mini" style="margin:8px 0 0;text-align:center">Pratique si quelqu’un d’autre dépose le véhicule.
+        Bientôt payable directement ici, dans l’app.</p>` : ''}
     ${annulable ? `
       <button class="ocr-btn ocr-btn--fantome ocr-btn--bloc" style="margin-top:12px;color:var(--ocr-argent-2)" data-annuler>
         Annuler cette réservation</button>
