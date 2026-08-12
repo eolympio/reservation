@@ -409,6 +409,10 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   padding:10px calc(var(--ocr-e4) + env(safe-area-inset-right)) 10px calc(var(--ocr-e4) + env(safe-area-inset-left));
   padding-top:calc(10px + env(safe-area-inset-top));
   display:flex;align-items:center;gap:var(--ocr-e3)}
+/* Une plaque se lit caractère par caractère : majuscules, chiffres à largeur
+   fixe, un peu d'air entre les signes. */
+.ocr-saisie.plaque{text-transform:uppercase;letter-spacing:.1em;
+  font-variant-numeric:tabular-nums;font-weight:600}
 /* ---- Mon espace : feuille modale + reçu imprimable ---- */
 .voile-espace{position:fixed;inset:0;background:rgba(5,5,6,.72);backdrop-filter:blur(4px);z-index:100;
   display:grid;place-items:center;padding:var(--ocr-e4);animation:ocrVoile .16s ease-out}
@@ -995,6 +999,51 @@ function lireReference(ref) {
   return m ? { annee: 2000 + +m[1], mois: +m[2], sequence: +m[3] } : null;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   IMMATRICULATION (Bénin)
+   Voiture : 2 lettres + 4 chiffres              — CB5916
+   Moto    : 1 chiffre + 2 lettres + 4 chiffres  — 2FB9408
+
+   Le champ n'est JAMAIS obligatoire : on peut compléter à l'atelier,
+   véhicule devant nous. Mais dès qu'une plaque est saisie, elle est
+   ramenée à sa forme canonique (majuscules, sans espace ni tiret) :
+   c'est ce qui permet de rattacher tout seul un véhicule à son client
+   au passage suivant. « cb 5916 », « CB-5916 » et « CB5916 » doivent
+   désigner le MÊME véhicule, sinon on crée des doublons et la fidélité
+   se disperse.
+
+   Les formats sont VÉRIFIÉS mais pas IMPOSÉS : une plaque étrangère,
+   diplomatique ou ancienne reste acceptée, simplement signalée. Refuser
+   un vrai véhicule coûterait plus cher qu'une saisie inhabituelle.
+   ───────────────────────────────────────────────────────────── */
+const PLAQUE_VOITURE = /^[A-Z]{2}[0-9]{4}$/;
+const PLAQUE_MOTO    = /^[0-9][A-Z]{2}[0-9]{4}$/;
+const PLAQUE_EXEMPLES = { voiture: 'CB5916', moto: '2FB9408' };
+
+/** Forme canonique d'une plaque : majuscules, sans espace ni ponctuation. */
+function plaque(v) {
+  return String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * État d'une plaque saisie : forme propre, type reconnu, format connu ou non.
+ * `gabarit` est facultatif — s'il est fourni, on signale une plaque moto sur
+ * un gabarit voiture (et l'inverse), qui est presque toujours une erreur.
+ */
+function plaqueEtat(v, gabarit) {
+  const cle = plaque(v);
+  if (!cle) return { cle: '', vide: true, type: null, ok: true, accord: true, aide: '' };
+  const type = PLAQUE_VOITURE.test(cle) ? 'voiture' : PLAQUE_MOTO.test(cle) ? 'moto' : null;
+  if (!type) return { cle, vide: false, type: null, ok: false, accord: true,
+    aide: 'Format inhabituel — voiture : ' + PLAQUE_EXEMPLES.voiture + ' · moto : ' + PLAQUE_EXEMPLES.moto };
+  // Cohérence avec le gabarit choisi, quand on le connaît.
+  const accord = gabarit ? (gabarit === 'moto' ? type === 'moto' : type === 'voiture') : true;
+  return { cle, vide: false, type, ok: true, accord,
+    aide: accord ? (type === 'moto' ? '✓ Plaque moto' : '✓ Plaque voiture')
+                 : (type === 'moto' ? 'Plaque au format moto — vérifie le type de véhicule'
+                                    : 'Plaque au format voiture — vérifie le type de véhicule') };
+}
+
 /** Lien WhatsApp pré-rempli. */
 function lienWhatsApp(message) {
   return 'https://wa.me/' + MARQUE.whatsapp + (message ? '?text=' + encodeURIComponent(message) : '');
@@ -1014,6 +1063,7 @@ const API = {
   carnet, prixCarnet, prixCarnetUnite, economieCarnet,
   recetteMensuelleCarnet, heuresCarnet, porteursPourCouvrir,
   reference, lireReference, lienWhatsApp,
+  plaque, plaqueEtat, PLAQUE_EXEMPLES,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
@@ -1058,34 +1108,34 @@ function creerSupabasePublicDemo() {
   const cle8 = t => String(t || '').replace(/[^0-9]/g, '').slice(-8);
   const comptes = {
     [cle8('+229 01 97 45 12 30')]: {
-      nom: 'Koffi Adjovi', tel: '+229 01 97 45 12 30', code: '2468', plaques: ['1234 AB 1'],
+      nom: 'Koffi Adjovi', tel: '+229 01 97 45 12 30', code: '2468', plaques: ['CB5916'],
       vehicules: [
-        { id: 'v1', gabarit: 'berline', marque: 'Toyota', modele: 'RAV4', immatriculation: '1234 AB 1' },
-        { id: 'v5', gabarit: 'moto', marque: 'Haojue', modele: 'DK 150', immatriculation: null },
+        { id: 'v1', gabarit: 'berline', marque: 'Toyota', modele: 'RAV4', immatriculation: 'CB5916' },
+        { id: 'v5', gabarit: 'moto', marque: 'Haojue', modele: 'DK 150', immatriculation: '2FB9408' },
       ],
       passages: [
         { reference: 'OCR-2608-0031', journee: decale(-4), heure: '08:40:00', gabarit: 'berline',
           montant_brut: 10000, remise: 0, montant_total: 10000, statut_paiement: 'paye',
           mode_paiement: 'kkiapay', annule: false,
-          vehicule: { marque: 'Toyota', modele: 'RAV4', immatriculation: '1234 AB 1' },
+          vehicule: { marque: 'Toyota', modele: 'RAV4', immatriculation: 'CB5916' },
           lignes: [{ type: 'prestation', libelle: 'Lavage Signature', prix: 8000 },
                    { type: 'option', libelle: 'Traitement hydrofuge vitres', prix: 2000 }] },
         { reference: 'OCR-2608-0018', journee: decale(-19), heure: '15:10:00', gabarit: 'berline',
           montant_brut: 3000, remise: 0, montant_total: 3000, statut_paiement: 'paye',
           mode_paiement: 'especes', annule: false,
-          vehicule: { marque: 'Toyota', modele: 'RAV4', immatriculation: '1234 AB 1' },
+          vehicule: { marque: 'Toyota', modele: 'RAV4', immatriculation: 'CB5916' },
           lignes: [{ type: 'prestation', libelle: 'Lavage Express', prix: 3000 }] },
         { reference: 'OCR-2608-0009', journee: decale(-38), heure: '11:00:00', gabarit: 'moto',
           montant_brut: 1000, remise: 300, montant_total: 700, statut_paiement: 'paye',
           mode_paiement: 'kkiapay', annule: false,
-          vehicule: { marque: 'Haojue', modele: 'DK 150', immatriculation: null },
+          vehicule: { marque: 'Haojue', modele: 'DK 150', immatriculation: '2FB9408' },
           lignes: [{ type: 'prestation', libelle: 'Lavage Express moto', prix: 1000 }] },
       ],
       fidelite: { tampons: 2.5, depense: 13700, passages: 3, dernier_passage: decale(-4) },
     },
     [cle8('+229 01 62 30 88 14')]: {
-      nom: 'Sylvie Dossou', tel: '+229 01 62 30 88 14', code: null, plaques: ['5521 AC 2'],
-      vehicules: [{ id: 'v2', gabarit: 'petite', marque: 'Kia', modele: 'Rio', immatriculation: '5521 AC 2' }],
+      nom: 'Sylvie Dossou', tel: '+229 01 62 30 88 14', code: null, plaques: ['AJ2274'],
+      vehicules: [{ id: 'v2', gabarit: 'petite', marque: 'Kia', modele: 'Rio', immatriculation: 'AJ2274' }],
       passages: [], fidelite: { tampons: 0.5, depense: 2500, passages: 1, dernier_passage: decale(-2) },
     },
   };
@@ -1172,8 +1222,8 @@ function creerSupabasePublicDemo() {
       const p = normPl(a.p_immat);
       if (p && c.vehicules.some(v => normPl(v.immatriculation) === p)) return [];
       c.vehicules.push({ id: 'v' + Math.random().toString(36).slice(2, 7), gabarit: a.p_gabarit,
-        marque: a.p_marque, modele: a.p_modele, immatriculation: a.p_immat });
-      if (a.p_immat) c.plaques.push(a.p_immat);
+        marque: a.p_marque, modele: a.p_modele, immatriculation: p || null });
+      if (p) c.plaques.push(p);
       sauverDemo();
       return [];
     },
@@ -1249,6 +1299,8 @@ let promptInstall = null;
 const estInstallee = () => navigator.standalone === true ||
   (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
 const surIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const surAndroid = /Android/.test(navigator.userAgent);
+const surChrome = /Chrome|Chromium|CriOS|Edg/.test(navigator.userAgent);
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   promptInstall = e;
@@ -1265,7 +1317,37 @@ async function installerApp() {
     return;
   }
   if (surIOS) return boiteInstallIOS();      // iPhone : deux gestes, illustrés
-  toast('Menu du navigateur → « Installer l’application »');
+  return boiteInstallManuel();               // sinon : on explique où c'est
+}
+
+/* Quand le navigateur ne nous laisse pas déclencher l'installation nous-mêmes,
+   on ne laisse JAMAIS l'utilisateur devant un bouton muet : on lui montre le
+   chemin, adapté à son navigateur. (Chrome ne propose son invite que si tout
+   est en règle côté site — manifeste ET icônes accessibles.) */
+function boiteInstallManuel() {
+  const etapes = surAndroid
+    ? ['Touche le menu <strong>⋮</strong> en haut à droite',
+       'Choisis <strong>« Installer l’application »</strong> (ou <strong>« Ajouter à l’écran d’accueil »</strong>)']
+    : surChrome
+    ? ['Dans la barre d’adresse, clique sur l’icône <strong>⊕</strong> — « Installer »',
+       'Sinon : menu <strong>⋮</strong> → <strong>Installer OCR Brillance</strong>']
+    : ['Ouvre ce site dans <strong>Chrome</strong> (ou <strong>Safari</strong> sur iPhone)',
+       'Puis menu du navigateur → <strong>Installer l’application</strong>'];
+  const v = document.createElement('div');
+  v.className = 'voile-espace';
+  v.innerHTML = `<div class="ocr-carte" style="max-width:400px;width:100%">
+    <h3 class="ocr-h2">Installer l’application</h3>
+    <p class="ocr-petit" style="margin:10px 0 var(--ocr-e4)">En deux gestes :</p>
+    ${etapes.map((t, i) => `
+      <div style="display:flex;gap:12px;align-items:center;padding:10px 0${i === 0 ? ';border-bottom:1px solid var(--ocr-sep)' : ''}">
+        <span class="etape-num">${i + 1}</span><span class="ocr-petit">${t}</span></div>`).join('')}
+    <p class="ocr-mini" style="margin:var(--ocr-e4) 0 0">Tu ne vois pas cette option ? Elle est peut-être déjà installée
+      sur cet appareil — vérifie ton écran d’accueil.</p>
+    <button class="ocr-btn ocr-btn--primaire ocr-btn--bloc" style="margin-top:var(--ocr-e4)" data-fermer>Compris</button>
+  </div>`;
+  v.addEventListener('click', e => { if (e.target === v || e.target.closest('[data-fermer]')) fermerFeuille(v); });
+  document.body.appendChild(v);
+  history.pushState({ ocrCouche: true }, '');
 }
 function boiteInstallIOS() {
   const v = document.createElement('div');
@@ -1290,8 +1372,13 @@ function boiteInstallIOS() {
 document.addEventListener('click', e => {
   if (e.target.closest && e.target.closest('[data-installer]')) installerApp();
 });
+/* Le bouton est TOUJOURS là quand l'app n'est pas installée. Avant, il était
+   caché tant que Chrome n'avait pas envoyé son invite — et comme Chrome ne
+   l'envoie que si les icônes du manifeste sont accessibles, un fichier manquant
+   sur le serveur rendait le bouton introuvable, sans le moindre message.
+   Un bouton visible qui explique le chemin vaut mieux qu'un bouton absent. */
 const boutonInstall = (marge) => estInstallee() ? '' :
-  `<button class="ocr-btn ocr-btn--fantome ocr-btn--bloc${promptInstall || surIOS ? '' : ' masque'}" data-installer
+  `<button class="ocr-btn ocr-btn--fantome ocr-btn--bloc" data-installer
      style="margin-top:${marge || '10px'}">📲 Installer l’application — gratuit, 2 secondes</button>`;
 
 /* Le service worker : ouverture instantanée, tarifs consultables hors ligne,
@@ -1317,6 +1404,10 @@ const decaleJour = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.
 const jourLong = d => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 let sb;
+/* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
+   savoir, depuis un téléphone, quelle version tourne vraiment après un
+   déploiement — sans ça on devine. */
+const VERSION = 'v10';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
@@ -1359,6 +1450,32 @@ function toast(msg, erreur) {
 }
 
 const lienWA = m => 'https://wa.me/' + OCR.MARQUE.whatsapp + (m ? '?text=' + encodeURIComponent(m) : '');
+
+/* Branche un champ d'immatriculation : mise en forme pendant la frappe
+   (majuscules, sans espace ni tiret), curseur conservé. Une plaque toujours
+   écrite de la même façon, c'est ce qui permet de retrouver le véhicule et
+   son propriétaire d'une fois sur l'autre — sinon on crée des doublons. */
+function brancherPlaque(el, apres) {
+  if (!el) return;
+  el.classList.add('plaque');
+  el.setAttribute('autocapitalize', 'characters');
+  el.setAttribute('autocomplete', 'off');
+  el.setAttribute('spellcheck', 'false');
+  el.setAttribute('maxlength', '10');
+  el.addEventListener('input', () => {
+    const utilesAvant = OCR.plaque(el.value.slice(0, el.selectionStart || 0)).length;
+    const propre = OCR.plaque(el.value);
+    if (el.value !== propre) { el.value = propre; el.setSelectionRange(utilesAvant, utilesAvant); }
+    if (apres) apres(propre);
+  });
+}
+/* L'aide sous le champ : le format attendu, ou la plaque reconnue. Jamais bloquant. */
+function aidePlaque(v, gabarit) {
+  const et = OCR.plaqueEtat(v, gabarit);
+  if (et.vide) return 'Voiture : ' + OCR.PLAQUE_EXEMPLES.voiture + ' · Moto : ' + OCR.PLAQUE_EXEMPLES.moto;
+  if (!et.ok || !et.accord) return '<span style="color:var(--ocr-ambre)">' + esc(et.aide) + '</span>';
+  return '<span style="color:var(--ocr-vert)">' + esc(et.aide) + '</span>';
+}
 
 /* ---------- disponibilité : 2 baies + battement, refus si doute ---------- */
 async function creneauxDispo(date, prestationId, gabaritId) {
@@ -1483,7 +1600,10 @@ function vueAccueil() {
       <div class="ocr-surtitre">Nous trouver</div>
       <p class="ocr-petit" style="margin:10px 0 0">Station Oryx Saint Michel, Cotonou.<br>
         Une question ? <a href="${lienWA('')}" target="_blank" rel="noopener" style="color:var(--ocr-rouge-texte)">WhatsApp</a> — réponse rapide aux heures d'ouverture.</p>
-    </div>`;
+    </div>
+
+    <p class="ocr-mini" style="text-align:center;margin:var(--ocr-e4) 0 0">OCR Brillance ${VERSION}${
+      estInstallee() ? ' · installée' : ''}</p>`;
 
   $('#vue').querySelectorAll('[data-gab]').forEach(b => b.addEventListener('click', () => {
     resa.gabarit = b.dataset.gab; resa.vehChoisi = 'nouveau'; vueAccueil();
@@ -1582,7 +1702,9 @@ function vueEtapePrestation() {
             <input class="ocr-saisie" id="vModele" value="${esc(resa.modele)}" placeholder="RAV4"></label>
         </div>
         <label class="ocr-champ" style="margin-bottom:var(--ocr-e3)"><span class="ocr-label">Immatriculation</span>
-          <input class="ocr-saisie" id="vImmat" value="${esc(resa.immat)}" placeholder="1234 AB 1"></label>
+          <input class="ocr-saisie" id="vImmat" value="${esc(resa.immat)}"
+                 placeholder="${resa.gabarit === 'moto' ? OCR.PLAQUE_EXEMPLES.moto : OCR.PLAQUE_EXEMPLES.voiture}">
+          <span class="ocr-aide" id="aideVImmat">${aidePlaque(resa.immat, resa.gabarit)}</span></label>
         <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
           <input type="checkbox" id="vSauver" ${resa.vehSauver ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--ocr-rouge)">
           <span class="ocr-petit">Enregistrer ce véhicule sur ce téléphone pour la prochaine fois</span>
@@ -1636,9 +1758,13 @@ function vueEtapePrestation() {
     if (resa.prestation && OCR.prix(resa.prestation, resa.gabarit) == null) resa.prestation = null;
     resa.heure = null; vueEtapePrestation();
   }));
-  ['vMarque:marque', 'vModele:modele', 'vImmat:immat'].forEach(pr => {
+  ['vMarque:marque', 'vModele:modele'].forEach(pr => {
     const [id, k] = pr.split(':');
     const el = $('#' + id); if (el) el.addEventListener('input', e => { resa[k] = e.target.value; });
+  });
+  brancherPlaque($('#vImmat'), propre => {
+    resa.immat = propre;
+    const a = $('#aideVImmat'); if (a) a.innerHTML = aidePlaque(propre, resa.gabarit);
   });
   const cs = $('#vSauver'); if (cs) cs.addEventListener('change', e => { resa.vehSauver = e.target.checked; });
   // lavages + détails + options
@@ -1800,7 +1926,7 @@ async function reserver() {
       p_duree_min: OCR.duree(resa.prestation, resa.gabarit),
       p_montant: T.total, p_acompte: aRegler,
       p_marque: resa.marque.trim() || null, p_modele: resa.modele.trim() || null,
-      p_immat: resa.immat.trim() || null,
+      p_immat: OCR.plaque(resa.immat) || null,
       p_note: resa.note.trim() || null, p_canal: 'app',
     });
     if (error) throw error;
@@ -1809,11 +1935,14 @@ async function reserver() {
     let vehiculeGarde = false;
     const estNouveau = resa.vehChoisi === 'nouveau' || resa.vehChoisi == null;
     if (resa.vehSauver && estNouveau && (resa.marque || resa.modele || resa.immat)) {
-      const doublon = garage.some(v => (v.immat && resa.immat && v.immat.trim() === resa.immat.trim()) ||
+      // Comparaison sur la forme canonique de la plaque : « cb 5916 » et
+      // « CB5916 » sont le même véhicule, pas deux entrées du garage.
+      const plaqueSaisie = OCR.plaque(resa.immat);
+      const doublon = garage.some(v => (OCR.plaque(v.immat) && plaqueSaisie && OCR.plaque(v.immat) === plaqueSaisie) ||
         (v.marque === resa.marque && v.modele === resa.modele && v.gabarit === resa.gabarit));
       if (!doublon) {
         garage.push({ id: 'v' + Math.random().toString(36).slice(2, 9), gabarit: resa.gabarit,
-                      marque: resa.marque.trim(), modele: resa.modele.trim(), immat: resa.immat.trim() });
+                      marque: resa.marque.trim(), modele: resa.modele.trim(), immat: plaqueSaisie });
         sauverGarage();
         vehiculeGarde = true;
       }
@@ -2084,8 +2213,8 @@ function vueEspaceEntree() {
         <strong>On te connaît déjà !</strong><br>Vérifions que c'est bien toi, puis choisis ton code.</div></div>
       <label class="ocr-champ">
         <span class="ocr-label">${e.etat && e.etat.indice === 'plaque' ? 'Ta plaque d’immatriculation' : 'Une référence de ton dernier passage'}</span>
-        <input class="ocr-saisie" id="ePreuve" value="${esc(e.preuve)}"
-               placeholder="${e.etat && e.etat.indice === 'plaque' ? '1234 AB 1' : 'OCR-2608-0042'}"
+        <input class="ocr-saisie${e.etat && e.etat.indice === 'plaque' ? ' plaque' : ''}" id="ePreuve" value="${esc(e.preuve)}"
+               placeholder="${e.etat && e.etat.indice === 'plaque' ? OCR.PLAQUE_EXEMPLES.voiture : 'OCR-2608-0042'}"
                autocapitalize="characters">
         <span class="ocr-aide">${e.etat && e.etat.indice === 'plaque'
           ? 'La plaque d’un véhicule que tu nous as déjà confié.'
@@ -2121,6 +2250,10 @@ function vueEspaceEntree() {
   ['eTel', 'eNom', 'ePreuve', 'ePin', 'eCode1', 'eCode2'].forEach(id => {
     const el = $('#' + id); if (el) el.addEventListener('input', lire);
   });
+  // Quand la preuve demandée est une PLAQUE, on la met en forme comme partout
+  // ailleurs. Quand c'est une référence (OCR-2608-0042), on n'y touche pas :
+  // le tiret en fait partie.
+  if (e.etat && e.etat.indice === 'plaque') brancherPlaque($('#ePreuve'), v => { espace.preuve = v; });
   brancher('eSuite', () => { lire(); etatNumero(); });
   brancher('eCreer', () => { lire(); creerEspace(); });
   brancher('eActiver', () => { lire(); activerEspace(); });
@@ -2346,22 +2479,30 @@ function boiteAjoutVehiculeEspace() {
         <input class="ocr-saisie" id="avMo" placeholder="RAV4"></label>
     </div>
     <label class="ocr-champ"><span class="ocr-label">Immatriculation</span>
-      <input class="ocr-saisie" id="avI" placeholder="1234 AB 1" autocapitalize="characters"></label>
+      <input class="ocr-saisie" id="avI" placeholder="${OCR.PLAQUE_EXEMPLES.voiture}">
+      <span class="ocr-aide" id="aideAvI">Voiture : ${OCR.PLAQUE_EXEMPLES.voiture} · Moto : ${OCR.PLAQUE_EXEMPLES.moto}</span></label>
     <div style="display:flex;gap:9px;margin-top:var(--ocr-e3)">
       <button class="ocr-btn ocr-btn--fantome" data-fermer>Annuler</button>
       <div style="flex:1"></div>
       <button class="ocr-btn ocr-btn--primaire" data-ok>Ajouter</button></div>`);
+  const majAideAvI = () => {
+    const a = v.querySelector('#aideAvI');
+    if (a) a.innerHTML = aidePlaque(v.querySelector('#avI').value, gab);
+  };
   v.querySelectorAll('[data-avg]').forEach(b => b.addEventListener('click', () => {
     gab = b.dataset.avg;
     v.querySelectorAll('[data-avg]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.avg === gab)));
+    v.querySelector('#avI').placeholder = gab === 'moto' ? OCR.PLAQUE_EXEMPLES.moto : OCR.PLAQUE_EXEMPLES.voiture;
+    majAideAvI();
   }));
+  brancherPlaque(v.querySelector('#avI'), majAideAvI);
   v.querySelector('[data-ok]').addEventListener('click', async ev => {
     ev.target.disabled = true;
     const { error } = await sb.rpc('ocr_espace_ajouter_vehicule', {
       p_jeton: espace.jeton, p_gabarit: gab,
       p_marque: v.querySelector('#avM').value.trim() || null,
       p_modele: v.querySelector('#avMo').value.trim() || null,
-      p_immat: v.querySelector('#avI').value.trim() || null });
+      p_immat: OCR.plaque(v.querySelector('#avI').value) || null });
     if (error) { toast(error.message, true); ev.target.disabled = false; return; }
     fermerFeuille(v); toast('Véhicule ajouté ✓');
     await chargerEspace(); rendre();
