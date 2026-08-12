@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="OCR Brillance">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
+<link rel="manifest" href="manifest.json">
 <style>
 /* ============================================================================
    OCR BRILLANCE — SOCLE COMMUN · ocr-tokens.css
@@ -1084,6 +1085,70 @@ const CONFIG_SUPABASE = {
 const MODE_DEMO = new URLSearchParams(location.search).has('demo');
 if (navigator.standalone === true) document.body.classList.add('plein-ecran');
 
+/* ---------- installation sur le téléphone : 1 tap sur Android, guide iPhone ---------- */
+let promptInstall = null;
+const estInstallee = () => navigator.standalone === true ||
+  (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+const surIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  promptInstall = e;
+  document.querySelectorAll('[data-installer]').forEach(b => b.classList.remove('masque'));
+});
+async function installerApp() {
+  if (promptInstall) {                       // Android : le téléphone propose, un seul tap
+    promptInstall.prompt();
+    const { outcome } = await promptInstall.userChoice;
+    if (outcome === 'accepted') {
+      toast('Installée ✓ — retrouve-nous sur ton écran d’accueil');
+      promptInstall = null; rendre();
+    }
+    return;
+  }
+  if (surIOS) return boiteInstallIOS();      // iPhone : deux gestes, illustrés
+  toast('Menu du navigateur → « Installer l’application »');
+}
+function boiteInstallIOS() {
+  const v = document.createElement('div');
+  v.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,6,.72);backdrop-filter:blur(4px);z-index:100;display:grid;place-items:center;padding:16px';
+  v.innerHTML = `<div class="ocr-carte" style="max-width:400px;width:100%">
+    <h3 class="ocr-h2">Installer sur ton iPhone</h3>
+    <p class="ocr-petit" style="margin:10px 0 var(--ocr-e4)">Deux gestes, dans Safari :</p>
+    <div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ocr-sep)">
+      <span class="etape-num">1</span>
+      <span class="ocr-petit">Touche le bouton <strong>Partager</strong>
+        <span style="display:inline-block;border:1.5px solid currentColor;border-radius:5px;padding:0 7px;margin:0 2px">↑</span>
+        en bas de l’écran</span></div>
+    <div style="display:flex;gap:12px;align-items:center;padding:10px 0">
+      <span class="etape-num">2</span>
+      <span class="ocr-petit">Choisis <strong>« Sur l’écran d’accueil »</strong> puis <strong>Ajouter</strong></span></div>
+    <button class="ocr-btn ocr-btn--primaire ocr-btn--bloc" style="margin-top:var(--ocr-e4)" data-fermer>Compris</button>
+  </div>`;
+  v.addEventListener('click', e => { if (e.target === v || e.target.closest('[data-fermer]')) v.remove(); });
+  document.body.appendChild(v);
+}
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('[data-installer]')) installerApp();
+});
+const boutonInstall = (marge) => estInstallee() ? '' :
+  `<button class="ocr-btn ocr-btn--fantome ocr-btn--bloc${promptInstall || surIOS ? '' : ' masque'}" data-installer
+     style="margin-top:${marge || '10px'}">📲 Installer l’application — gratuit, 2 secondes</button>`;
+
+/* Le service worker : ouverture instantanée, tarifs consultables hors ligne,
+   et mises à jour silencieuses (les pages passent toujours par le réseau). */
+if ('serviceWorker' in navigator && !MODE_DEMO &&
+    (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const nv = reg.installing;
+      if (nv) nv.addEventListener('statechange', () => {
+        if (nv.state === 'activated' && navigator.serviceWorker.controller)
+          toast('✨ L’application vient de se mettre à jour');
+      });
+    });
+  }).catch(() => {});
+}
+
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const auj = () => new Date().toLocaleDateString('en-CA');
@@ -1186,6 +1251,7 @@ function vueAccueil() {
         Ouvert 7 j/7 · ${OCR.min2hm(OCR.CONFIG.ouvertureMin)} – ${OCR.min2hm(OCR.CONFIG.fermetureMin)}</div>
       <button class="ocr-btn ocr-btn--primaire ocr-btn--bloc" data-go="reserver"
         style="margin-top:var(--ocr-e5);font-size:15px;padding:15px">Réserver mon créneau</button>
+      ${boutonInstall()}
     </div>
 
     <div class="ocr-carte">
@@ -1605,6 +1671,10 @@ function vueConfirmation() {
         ${c.tout ? 'Tout régler sur WhatsApp' : 'Régler l’acompte sur WhatsApp'}</a>
       <button class="ocr-btn ocr-btn--fantome ocr-btn--bloc" style="margin-top:9px" data-nouvelle>Nouvelle réservation</button>
     </div>
+    ${estInstallee() ? '' : `<div class="ocr-carte" style="margin-top:var(--ocr-e4);text-align:center">
+      <p class="ocr-petit" style="margin:0">Garde OCR Brillance sur ton téléphone —<br>ta prochaine réservation en deux taps.</p>
+      ${boutonInstall('12px')}
+    </div>`}
     ${c.vehiculeGarde ? `<p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">
       🚗 Ton véhicule est enregistré sur ce téléphone — la prochaine réservation ira deux fois plus vite.</p>` : ''}
     <p class="ocr-mini" style="text-align:center;margin-top:var(--ocr-e4)">Annulation gratuite jusqu’à la veille.
