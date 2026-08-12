@@ -409,8 +409,11 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   padding-top:calc(10px + env(safe-area-inset-top));
   display:flex;align-items:center;gap:var(--ocr-e3)}
 /* Épinglée sur l'écran d'accueil, l'app passe sous l'heure et la batterie
-   de l'iPhone : le bandeau du haut doit s'en écarter aussi. */
+   de l'iPhone : le bandeau du haut doit s'en écarter aussi. En plein écran,
+   minimum garanti de 54px même sans mesure d'encoche. */
 #bandeau .bandeau:first-child{padding-top:calc(10px + env(safe-area-inset-top))}
+.plein-ecran .entete{padding-top:max(calc(10px + env(safe-area-inset-top)), 54px)}
+.plein-ecran #bandeau .bandeau:first-child{padding-top:max(calc(10px + env(safe-area-inset-top)), 54px)}
 .entete img{height:30px;display:block}
 .entete .liens{margin-left:auto;display:flex;gap:6px}
 
@@ -1079,6 +1082,7 @@ const CONFIG_SUPABASE = {
   cle: 'sb_publishable_lXTW60lsdobT4KRydsLMSw_Sj0ND8Lt',
 };
 const MODE_DEMO = new URLSearchParams(location.search).has('demo');
+if (navigator.standalone === true) document.body.classList.add('plein-ecran');
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
