@@ -1000,6 +1000,28 @@ function lireReference(ref) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   GROUPES DE LAVAGE — pour la couleur dans l'agenda
+
+   L'agenda doit se lire d'un coup d'œil : on regroupe donc les
+   prestations par ENGAGEMENT (le temps et le matériel que ça demande),
+   pas une couleur par prestation. Trois groupes, parce que trois teintes
+   sont le maximum qui reste distinguable pour tout le monde — y compris
+   en cas de daltonisme — quand n'importe quels deux blocs peuvent se
+   retrouver côte à côte. Le nom exact du lavage est écrit dans le bloc :
+   la couleur situe, le texte identifie.
+   ───────────────────────────────────────────────────────────── */
+const GROUPES_LAVAGE = {
+  rapide:    { nom: 'Rapide',    ex: 'Express' },
+  signature: { nom: 'Signature', ex: 'Signature' },
+  longue:    { nom: 'Longue',    ex: 'Deep Cleaning, packs, sur devis' },
+};
+function groupeLavage(prestationId) {
+  if (/express/.test(prestationId || '')) return 'rapide';
+  if (/signature/.test(prestationId || '')) return 'signature';
+  return 'longue';   // deep, packs, moteur, polissage, céramique
+}
+
+/* ─────────────────────────────────────────────────────────────
    IMMATRICULATION (Bénin)
    Voiture : 2 lettres + 4 chiffres              — CB5916
    Moto    : 1 chiffre + 2 lettres + 4 chiffres  — 2FB9408
@@ -1066,6 +1088,7 @@ const API = {
   recetteMensuelleCarnet, heuresCarnet, porteursPourCouvrir,
   reference, lireReference, lienWhatsApp,
   plaque, plaqueEtat, PLAQUE_EXEMPLES,
+  GROUPES_LAVAGE, groupeLavage,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
@@ -1409,7 +1432,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v10';
+const VERSION = 'v11';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
@@ -1687,6 +1710,8 @@ function vueEtapePrestation() {
 
   $('#vue').innerHTML = `
     ${barreEtapes()}
+    <button class="ocr-btn ocr-btn--fantome ocr-btn--petit" data-nav="accueil"
+      style="margin-bottom:var(--ocr-e4)">‹ Accueil</button>
     <div class="ocr-surtitre">1 · Ton véhicule</div>
     <p class="ocr-mini" style="margin:8px 0 var(--ocr-e4)">Le prix dépend de la taille — choisis bien, comme ça
       <strong style="color:var(--ocr-blanc)">aucune surprise au paiement</strong>.</p>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OCR Brillance — Vérification du déploiement</title>
+<style>
+  :root{--noir:#0A0A0B;--carte:#16161a;--filet:#26262b;--blanc:#f4f4f5;--argent:#9a9aa2;
+        --rouge:#E8524E;--vert:#37C26B;--ambre:#F5A623}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px 16px 60px;background:var(--noir);color:var(--blanc);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .boite{max-width:620px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px;letter-spacing:.01em}
+  .sous{color:var(--argent);font-size:13px;margin:0 0 22px}
+  .verdict{border:1px solid var(--filet);border-radius:14px;padding:18px;margin-bottom:20px;background:var(--carte)}
+  .verdict h2{font-size:17px;margin:0 0 6px}
+  .verdict p{margin:0;color:var(--argent);font-size:14px}
+  .ok{border-color:rgba(55,194,107,.45);background:rgba(55,194,107,.07)}
+  .ko{border-color:rgba(232,82,78,.45);background:rgba(232,82,78,.07)}
+  .att{border-color:rgba(245,166,35,.45);background:rgba(245,166,35,.07)}
+  ul{list-style:none;margin:0;padding:0}
+  li{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--filet)}
+  li:last-child{border-bottom:0}
+  .p{flex:none;width:20px;text-align:center;font-size:15px}
+  .t{font-weight:600}
+  .d{display:block;color:var(--argent);font-size:13px;margin-top:3px}
+  .d code{background:#000;padding:1px 5px;border-radius:4px;font-size:12px}
+  .tourne{display:inline-block;width:13px;height:13px;border:2px solid var(--filet);
+          border-top-color:var(--argent);border-radius:50%;animation:t .7s linear infinite}
+  @keyframes t{to{transform:rotate(360deg)}}
+  .refaire{margin-top:20px;width:100%;padding:13px;border-radius:11px;border:1px solid var(--filet);
+           background:transparent;color:var(--blanc);font:600 14px inherit;cursor:pointer}
+  .apercu{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .apercu figure{margin:0;text-align:center}
+  .apercu img{width:64px;height:64px;border-radius:14px;background:#000;display:block}
+  .apercu figcaption{font-size:11px;color:var(--argent);margin-top:4px}
+</style>
+</head>
+<body>
+<div class="boite">
+  <h1>Vérification du déploiement</h1>
+  <p class="sous" id="ou"></p>
+  <div class="verdict" id="verdict"><h2><span class="tourne"></span> Vérification…</h2><p>Quelques secondes.</p></div>
+  <ul id="liste"></ul>
+  <div class="apercu" id="apercu"></div>
+  <button class="refaire" onclick="location.reload()">↻ Refaire la vérification</button>
+</div>
+<script>
+/* ==========================================================================
+   Page de contrôle après chaque mise en ligne.
+   À déposer à côté de index.html, puis ouvrir <adresse>/verif.html.
+   Elle vérifie tout ce dont Chrome a besoin pour proposer l'installation —
+   parce qu'un simple fichier d'icône manquant suffit à faire disparaître le
+   bouton « Installer », sans le moindre message d'erreur.
+   ========================================================================== */
+const liste = document.getElementById('liste');
+const P = { ok: '✓', ko: '✕', att: '!', vide: '·' };
+const COUL = { ok: 'var(--vert)', ko: 'var(--rouge)', att: 'var(--ambre)', vide: 'var(--argent)' };
+function dire(etat, titre, detail) {
+  const li = document.createElement('li');
+  li.innerHTML = '<span class="p" style="color:' + COUL[etat] + '">' + P[etat] + '</span>' +
+    '<span><span class="t">' + titre + '</span>' + (detail ? '<span class="d">' + detail + '</span>' : '') + '</span>';
+  liste.appendChild(li);
+  return etat;
+}
+const bloquants = [];
+function exiger(etat, titre, detail, siKo) {
+  dire(etat, titre, detail);
+  if (etat === 'ko') bloquants.push(siKo || titre);
+  return etat;
+}
+
+/* Une image se charge sans CORS : c'est le test le plus fiable pour une icône. */
+const testerImage = src => new Promise(res => {
+  const i = new Image();
+  i.onload = () => res({ ok: true, l: i.naturalWidth, h: i.naturalHeight });
+  i.onerror = () => res({ ok: false });
+  i.src = src + (src.includes('?') ? '&' : '?') + 'v=' + Date.now();
+});
+
+/* Le piège du 12/08 : les fichiers étaient bien en ligne, mais nommés
+   « icon192.png » quand le manifeste réclamait « icon-192.png ». Un tiret, et
+   l'installation entière tombe — sans message. Alors quand une icône manque,
+   on cherche activement le même fichier écrit autrement, et on le dit. */
+function variantes(src) {
+  const v = new Set([
+    src.replace(/-/g, ''),            // icon-192.png → icon192.png
+    src.replace(/(\d)/, '-$1'),       // icon192.png  → icon-192.png
+    src.replace(/_/g, '-'),
+    src.replace(/-/g, '_'),
+    src.toLowerCase(),
+  ]);
+  v.delete(src);
+  return [...v];
+}
+async function chercherAilleurs(src) {
+  for (const cand of variantes(src)) {
+    const r = await testerImage(cand);
+    if (r.ok) return { nom: cand, l: r.l, h: r.h };
+  }
+  return null;
+}
+
+(async () => {
+  document.getElementById('ou').textContent = location.origin + location.pathname;
+
+  // 1 · HTTPS — sans lui, pas de service worker, donc pas d'installation
+  const sur = location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
+  exiger(sur ? 'ok' : 'ko', 'Connexion sécurisée (HTTPS)',
+    sur ? location.protocol : 'L’installation exige HTTPS.', 'le site doit être en HTTPS');
+
+  // 2 · le manifeste
+  let man = null;
+  try {
+    const r = await fetch('manifest.json?v=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    man = await r.json();
+    dire('ok', 'manifest.json trouvé et lisible', '« ' + (man.name || '?') + ' »');
+  } catch (e) {
+    exiger('ko', 'manifest.json', 'Introuvable ou illisible : ' + e.message +
+      ' — le fichier doit être à côté de <code>index.html</code>.', 'manifest.json manquant');
+  }
+
+  if (man) {
+    const champs = [['name', man.name], ['start_url', man.start_url], ['display', man.display]];
+    const manque = champs.filter(([, v]) => !v).map(([k]) => k);
+    exiger(manque.length ? 'ko' : 'ok', 'Champs obligatoires du manifeste',
+      manque.length ? 'Manquant(s) : ' + manque.join(', ') : 'name, start_url, display : présents',
+      'champs manquants dans le manifeste');
+    const autonome = ['standalone', 'fullscreen', 'minimal-ui'].includes(man.display);
+    exiger(autonome ? 'ok' : 'ko', 'Mode d’affichage',
+      man.display + (autonome ? ' — s’ouvre comme une vraie app' : ' — doit être « standalone »'),
+      'display doit être standalone');
+
+    // 3 · les icônes, une par une : LE piège habituel
+    const icones = man.icons || [];
+    if (!icones.length) exiger('ko', 'Icônes déclarées', 'Aucune icône dans le manifeste.', 'aucune icône déclarée');
+    let ok192 = false, ok512 = false, okMask = false;
+    const apercu = document.getElementById('apercu');
+    for (const ic of icones) {
+      const r = await testerImage(ic.src);
+      const taille = (ic.sizes || '').split('x')[0] | 0;
+      const bonneTaille = r.ok && (!taille || (r.l === taille && r.h === taille));
+      const masque = (ic.purpose || '').includes('maskable');
+      if (!r.ok) {
+        // Manquante : le même fichier existe-t-il sous un autre nom ?
+        const jumeau = await chercherAilleurs(ic.src);
+        dire('ko', 'Icône ' + ic.src, jumeau
+          ? 'Introuvable — mais <code>' + jumeau.nom + '</code> existe (' + jumeau.l + '×' + jumeau.h +
+            ' px). <strong>C’est un problème de nom de fichier.</strong> Renomme-le en <code>' +
+            ic.src + '</code> sur GitHub, ou remets en ligne le fichier au bon nom.'
+          : 'INTROUVABLE (404) — le fichier n’est pas sur le serveur.');
+        bloquants.push(jumeau
+          ? ic.src + ' : le fichier est en ligne sous le nom ' + jumeau.nom + ' — un nom ne correspond pas'
+          : 'l’icône ' + ic.src + ' est absente du serveur');
+        continue;
+      }
+      dire(bonneTaille ? 'ok' : 'att', 'Icône ' + ic.src,
+        bonneTaille ? r.l + '×' + r.h + ' px' + (masque ? ' · adaptative Android' : '')
+                    : 'trouvée en ' + r.l + '×' + r.h + ' mais déclarée ' + ic.sizes);
+      if (r.l >= 192 && !masque) ok192 = true;
+      if (r.l >= 512 && !masque) ok512 = true;
+      if (masque) okMask = true;
+      const f = document.createElement('figure');
+      f.innerHTML = '<img src="' + ic.src + '?v=' + Date.now() + '" alt="">' +
+        '<figcaption>' + (masque ? 'adaptative' : r.l + 'px') + '</figcaption>';
+      apercu.appendChild(f);
+    }
+    dire(ok192 ? 'ok' : 'ko', 'Icône de 192 px au moins',
+      ok192 ? 'présente' : 'Chrome refuse d’installer sans elle.');
+    if (!ok192) bloquants.push('aucune icône de 192 px utilisable');
+    dire(ok512 ? 'ok' : 'att', 'Icône de 512 px', ok512 ? 'présente' : 'recommandée pour l’écran d’accueil');
+    dire(okMask ? 'ok' : 'att', 'Icône adaptative (Android)',
+      okMask ? 'présente — le logo remplira bien la pastille'
+             : 'absente : Android affichera le logo dans un carré blanc');
+  }
+
+  // 4 · le service worker
+  try {
+    const r = await fetch('sw.js?v=' + Date.now(), { cache: 'no-store' });
+    dire(r.ok ? 'ok' : 'ko', 'sw.js trouvé', r.ok ? 'HTTP 200' : 'HTTP ' + r.status);
+    if (!r.ok) bloquants.push('sw.js est absent du serveur');
+  } catch (e) { exiger('ko', 'sw.js', e.message, 'sw.js est absent du serveur'); }
+
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    dire(regs.length ? 'ok' : 'att', 'Service worker enregistré',
+      regs.length ? regs.length + ' enregistrement — mises à jour silencieuses actives'
+                  : 'pas encore : ouvre d’abord la page d’accueil de l’app, puis reviens ici');
+  } else exiger('ko', 'Service worker', 'Non pris en charge par ce navigateur.', 'navigateur sans service worker');
+
+  // 5 · déjà installée ? et l'invite du navigateur
+  const installee = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (installee) dire('ok', 'Déjà installée sur cet appareil', 'tu regardes cette page depuis l’app installée');
+
+  const invite = await new Promise(res => {
+    let f = false;
+    const h = e => { f = true; e.preventDefault(); res(true); };
+    window.addEventListener('beforeinstallprompt', h, { once: true });
+    setTimeout(() => { window.removeEventListener('beforeinstallprompt', h); if (!f) res(false); }, 3500);
+  });
+  const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  dire(invite ? 'ok' : (installee || iOS ? 'vide' : 'att'),
+    'Invite d’installation du navigateur',
+    invite ? 'reçue — le bouton ⊕ doit apparaître dans la barre d’adresse'
+      : installee ? 'inutile : l’app est déjà installée ici'
+      : iOS ? 'Safari ne la propose jamais : sur iPhone, c’est Partager → Sur l’écran d’accueil'
+      : 'pas reçue — voir les points en rouge ci-dessus, ou l’app est déjà installée');
+
+  // ── verdict ──
+  const v = document.getElementById('verdict');
+  if (bloquants.length) {
+    v.className = 'verdict ko';
+    v.innerHTML = '<h2>✕ L’installation est bloquée</h2><p>À corriger : ' +
+      bloquants.map(b => '<br>· ' + b).join('') + '</p>';
+  } else if (invite || installee || iOS) {
+    v.className = 'verdict ok';
+    v.innerHTML = '<h2>✓ Tout est en place</h2><p>' + (installee
+      ? 'L’app est installée sur cet appareil.'
+      : iOS ? 'Sur iPhone : Partager → « Sur l’écran d’accueil ». Sur Android et ordinateur, le bouton « Installer » s’affiche.'
+      : 'Chrome propose l’installation : bouton ⊕ dans la barre d’adresse, ou menu ⋮ → Installer.') + '</p>';
+  } else {
+    v.className = 'verdict att';
+    v.innerHTML = '<h2>! Fichiers en ordre, invite non reçue</h2>' +
+      '<p>Les fichiers sont bons. Si le bouton ⊕ n’apparaît pas : l’app est peut-être déjà installée, ' +
+      'ou Chrome garde une ancienne version en mémoire — recharge en vidant le cache ' +
+      '(Ctrl+Maj+R), ou teste dans une fenêtre de navigation privée.</p>';
+  }
+})();
+</script>
+</body>
+</html>
