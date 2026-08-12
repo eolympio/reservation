@@ -88,6 +88,11 @@
   --ocr-ombre-feuille: 0 -30px 60px -20px rgba(0,0,0,.7);
 
   --ocr-transition: .16s cubic-bezier(.4,0,.2,1);
+
+  /* ── Détails d'interface pilotés par le thème ───────────── */
+  --ocr-sep:   rgba(244,244,245,.06);   /* filets internes des cartes     */
+  --ocr-trace: rgba(244,244,245,.08);   /* piste des barres de progression*/
+  --ocr-jauge: rgba(244,244,245,.28);   /* remplissage neutre d'une barre */
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -360,6 +365,38 @@
   .fiche:hover, .presta:hover { transform: none; }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   MODE CLAIR — appliqué avec la classe .theme-clair sur .ocr.
+   Les noms de variables ne changent pas : --ocr-noir reste
+   « le fond » et --ocr-blanc « le texte », quel que soit le thème.
+   Contrastes vérifiés : texte principal 16,9:1, secondaire 7,3:1,
+   rouge texte 5,9:1 sur fond clair.
+   ───────────────────────────────────────────────────────────── */
+.ocr.theme-clair {
+  --ocr-noir:          #F5F5F6;
+  --ocr-noir-2:        #ECECEE;
+  --ocr-surface:       #FFFFFF;
+  --ocr-surface-haute: #EFEFF1;
+  --ocr-filet:         #DCDCE0;
+
+  --ocr-blanc:         #141417;
+  --ocr-argent:        #505257;
+  --ocr-argent-2:      #6E7075;
+
+  --ocr-rouge-texte:   #BB1F1D;
+  --ocr-vert:          #157A40;
+  --ocr-ambre:         #9C6200;
+  --ocr-erreur:        #BB1F1D;
+
+  --ocr-grad-chrome: linear-gradient(180deg, #3E3F43 0%, #6E7075 42%, #2E2F33 68%, #55575C 100%);
+  --ocr-lueur-rouge: radial-gradient(130% 90% at 80% -10%, rgba(214,32,30,.12), transparent 55%);
+  --ocr-ombre-feuille: 0 -30px 60px -20px rgba(0,0,0,.16);
+
+  --ocr-sep:   rgba(10,10,11,.08);
+  --ocr-trace: rgba(10,10,11,.09);
+  --ocr-jauge: rgba(10,10,11,.30);
+}
+
 
 /* ---- propre à l'app de réservation ---- */
 html,body{margin:0;padding:0;min-height:100dvh}
@@ -367,12 +404,18 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .masque{display:none!important}
 
 .entete{position:sticky;top:0;z-index:30;background:rgba(10,10,11,.92);backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--ocr-filet);padding:10px var(--ocr-e4);
+  border-bottom:1px solid var(--ocr-filet);
+  padding:10px calc(var(--ocr-e4) + env(safe-area-inset-right)) 10px calc(var(--ocr-e4) + env(safe-area-inset-left));
+  padding-top:calc(10px + env(safe-area-inset-top));
   display:flex;align-items:center;gap:var(--ocr-e3)}
+/* Épinglée sur l'écran d'accueil, l'app passe sous l'heure et la batterie
+   de l'iPhone : le bandeau du haut doit s'en écarter aussi. */
+#bandeau .bandeau:first-child{padding-top:calc(10px + env(safe-area-inset-top))}
 .entete img{height:30px;display:block}
 .entete .liens{margin-left:auto;display:flex;gap:6px}
 
-.corps{max-width:680px;margin:0 auto;padding:var(--ocr-e5) var(--ocr-e4) 60px;width:100%;box-sizing:border-box}
+.corps{max-width:680px;margin:0 auto;width:100%;box-sizing:border-box;
+  padding:var(--ocr-e5) calc(var(--ocr-e4) + env(safe-area-inset-right)) 60px calc(var(--ocr-e4) + env(safe-area-inset-left))}
 
 .hero{text-align:center;padding:var(--ocr-e6) 0 var(--ocr-e5);position:relative}
 .hero::before{content:'';position:absolute;left:50%;top:-20px;transform:translateX(-50%);
