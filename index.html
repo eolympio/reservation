@@ -1018,7 +1018,9 @@ function lireReference(ref) {
    ───────────────────────────────────────────────────────────── */
 const PLAQUE_VOITURE = /^[A-Z]{2}[0-9]{4}$/;
 const PLAQUE_MOTO    = /^[0-9][A-Z]{2}[0-9]{4}$/;
-const PLAQUE_EXEMPLES = { voiture: 'CB5916', moto: '2FB9408' };
+// Des MOTIFS, pas des plaques réelles : CB5916 (l'exemple d'origine) pouvait
+// être la plaque d'un vrai véhicule — l'afficher en exemple prêtait à confusion.
+const PLAQUE_EXEMPLES = { voiture: 'AB1234', moto: '1AB2345' };
 
 /** Forme canonique d'une plaque : majuscules, sans espace ni ponctuation. */
 function plaque(v) {
@@ -1451,6 +1453,26 @@ function toast(msg, erreur) {
 
 const lienWA = m => 'https://wa.me/' + OCR.MARQUE.whatsapp + (m ? '?text=' + encodeURIComponent(m) : '');
 
+/* ---------- téléphone : le +229 est déjà tapé ---------- */
+const INDICATIF = '+229 ';
+const telAffiche = v => (String(v || '').trim() ? String(v) : INDICATIF);
+function telPropre(v) {
+  let t = String(v || '').trim();
+  const chiffres = t.replace(/[^0-9]/g, '');
+  if (!chiffres || chiffres === '229') return '';
+  t = t.replace(/^(\+?229[\s.]*)+(?=\+?229)/, '');   // « +229 +229 01… » (collage) → un seul indicatif
+  if (/^229[\s.]/.test(t)) t = '+' + t;                 // « 229 01… » → « +229 01… »
+  if (!t.startsWith('+') && !t.startsWith('00')) t = INDICATIF + t;   // « 0197… » → « +229 0197… »
+  return t;
+}
+function brancherTel(el) {
+  if (!el) return;
+  el.addEventListener('focus', () => {
+    if (!el.value.trim()) el.value = INDICATIF;
+    requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+  });
+}
+
 /* Branche un champ d'immatriculation : mise en forme pendant la frappe
    (majuscules, sans espace ni tiret), curseur conservé. Une plaque toujours
    écrite de la même façon, c'est ce qui permet de retrouver le véhicule et
@@ -1697,9 +1719,9 @@ function vueEtapePrestation() {
         <p class="ocr-mini" style="margin:0 0 var(--ocr-e3)">Facultatif — mais ça nous aide à préparer ton passage :</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
           <label class="ocr-champ"><span class="ocr-label">Marque</span>
-            <input class="ocr-saisie" id="vMarque" value="${esc(resa.marque)}" placeholder="Toyota"></label>
+            <input class="ocr-saisie" id="vMarque" value="${esc(resa.marque)}"></label>
           <label class="ocr-champ"><span class="ocr-label">Modèle</span>
-            <input class="ocr-saisie" id="vModele" value="${esc(resa.modele)}" placeholder="RAV4"></label>
+            <input class="ocr-saisie" id="vModele" value="${esc(resa.modele)}"></label>
         </div>
         <label class="ocr-champ" style="margin-bottom:var(--ocr-e3)"><span class="ocr-label">Immatriculation</span>
           <input class="ocr-saisie" id="vImmat" value="${esc(resa.immat)}"
@@ -1850,9 +1872,9 @@ function vueEtapeCoordonnees() {
     <div class="ocr-surtitre">3 · Tes coordonnées</div>
     <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
       <label class="ocr-champ"><span class="ocr-label">Nom *</span>
-        <input class="ocr-saisie" id="fNom" value="${esc(resa.nom)}" placeholder="Koffi Adjovi" autocomplete="name"></label>
+        <input class="ocr-saisie" id="fNom" value="${esc(resa.nom)}" autocomplete="name"></label>
       <label class="ocr-champ"><span class="ocr-label">Téléphone (WhatsApp) *</span>
-        <input class="ocr-saisie" id="fTel" inputmode="tel" value="${esc(resa.tel)}" placeholder="+229 01 XX XX XX XX" autocomplete="tel">
+        <input class="ocr-saisie" id="fTel" inputmode="tel" value="${esc(telAffiche(resa.tel))}" autocomplete="tel">
         <span class="ocr-aide">Il sert à confirmer ta réservation et à ta fidélité.</span></label>
       <label class="ocr-champ" style="margin-bottom:0"><span class="ocr-label">Remarque</span>
         <input class="ocr-saisie" id="fNote" value="${esc(resa.note)}" placeholder="Mon chauffeur déposera le véhicule…"></label>
@@ -1898,6 +1920,8 @@ function vueEtapeCoordonnees() {
     const [id, k] = pr.split(':');
     $('#' + id).addEventListener('input', e => { resa[k] = e.target.value; });
   });
+  brancherTel($('#fTel'));
+  $('#fTel').addEventListener('change', e => { resa.tel = telPropre(e.target.value); });
   $('#vue').querySelectorAll('[data-pay]').forEach(b => b.addEventListener('click', () => {
     resa.paiement = b.dataset.pay; vueEtapeCoordonnees();
   }));
@@ -2048,7 +2072,7 @@ function vueSuivi() {
         <input class="ocr-saisie" id="sRef" value="${esc(suivi.ref)}" placeholder="OCR-2608-0042"
                autocapitalize="characters" autocomplete="off"></label>
       <label class="ocr-champ"><span class="ocr-label">Téléphone utilisé</span>
-        <input class="ocr-saisie" id="sTel" inputmode="tel" value="${esc(suivi.tel)}" placeholder="+229 01 XX XX XX XX"></label>
+        <input class="ocr-saisie" id="sTel" inputmode="tel" value="${esc(telAffiche(suivi.tel))}"></label>
       <button class="ocr-btn ocr-btn--primaire ocr-btn--bloc" id="btnChercher" ${suivi.cherche ? 'disabled' : ''}>
         ${suivi.cherche ? 'Recherche…' : 'Retrouver ma réservation'}</button>
     </div>
@@ -2056,6 +2080,8 @@ function vueSuivi() {
       ${f === null ? '' : !f ? '<div class="vide">Aucune réservation trouvée avec cette référence et ce numéro.</div>' : ficheResa(f)}
     </div>`;
 
+  brancherTel($('#sTel'));
+  const stl = $('#sTel'); if (stl) stl.addEventListener('change', e => { suivi.tel = telPropre(e.target.value); });
   ['sRef:ref', 'sTel:tel'].forEach(pr => {
     const [id, k] = pr.split(':');
     $('#' + id).addEventListener('input', e => { suivi[k] = e.target.value; });
@@ -2186,8 +2212,7 @@ function vueEspaceEntree() {
         pas besoin d'adresse e-mail. Tu retrouveras tes véhicules, tes lavages,
         tes reçus et ta fidélité sur n'importe quel téléphone.</p>
       <label class="ocr-champ"><span class="ocr-label">Ton téléphone</span>
-        <input class="ocr-saisie" id="eTel" inputmode="tel" value="${esc(e.tel)}"
-               placeholder="+229 01 XX XX XX XX" autocomplete="tel"></label>
+        <input class="ocr-saisie" id="eTel" inputmode="tel" value="${esc(telAffiche(e.tel))}" autocomplete="tel"></label>
       <button class="ocr-btn ocr-btn--primaire ocr-btn--bloc" id="eSuite" ${e.occupe ? 'disabled' : ''}>
         ${e.occupe ? 'Un instant…' : 'Continuer'}</button>
     </div>
@@ -2200,7 +2225,7 @@ function vueEspaceEntree() {
       <div class="ocr-message ocr-message--succes" style="margin-bottom:var(--ocr-e4)"><span>✦</span><div>
         <strong>Première fois ?</strong><br>On crée ton espace en 20 secondes.</div></div>
       <label class="ocr-champ"><span class="ocr-label">Ton nom</span>
-        <input class="ocr-saisie" id="eNom" value="${esc(e.nomSaisi)}" placeholder="Koffi Adjovi" autocomplete="name"></label>
+        <input class="ocr-saisie" id="eNom" value="${esc(e.nomSaisi)}" autocomplete="name"></label>
       ${champsCode('Choisis un code à 4 chiffres', 'Il te servira à retrouver tes données sur un autre téléphone. Ne le partage pas.')}
       <button class="ocr-btn ocr-btn--primaire ocr-btn--bloc" id="eCreer" ${e.occupe ? 'disabled' : ''}>
         ${e.occupe ? 'Création…' : 'Créer mon espace'}</button>
@@ -2259,6 +2284,8 @@ function vueEspaceEntree() {
   brancher('eActiver', () => { lire(); activerEspace(); });
   brancher('eOuvrir', () => { lire(); ouvrirEspace(); });
   brancher('eRetour', () => { espace.etape = 'numero'; espace.pin = ''; espace.pin2 = ''; espace.preuve = ''; vueEspace(); });
+  brancherTel($('#eTel'));
+  const etl = $('#eTel'); if (etl) etl.addEventListener('change', ev => { espace.tel = telPropre(ev.target.value); });
   const p1 = $('#eTel') || $('#ePin') || $('#eNom'); if (p1) p1.focus();
 }
 
@@ -2474,9 +2501,9 @@ function boiteAjoutVehiculeEspace() {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
       <label class="ocr-champ"><span class="ocr-label">Marque</span>
-        <input class="ocr-saisie" id="avM" placeholder="Toyota"></label>
+        <input class="ocr-saisie" id="avM"></label>
       <label class="ocr-champ"><span class="ocr-label">Modèle</span>
-        <input class="ocr-saisie" id="avMo" placeholder="RAV4"></label>
+        <input class="ocr-saisie" id="avMo"></label>
     </div>
     <label class="ocr-champ"><span class="ocr-label">Immatriculation</span>
       <input class="ocr-saisie" id="avI" placeholder="${OCR.PLAQUE_EXEMPLES.voiture}">
