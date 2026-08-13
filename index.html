@@ -166,18 +166,26 @@
   font-family: var(--ocr-titre); font-weight: 500; font-size: 14px;
   letter-spacing: .06em; text-transform: uppercase; text-decoration: none;
   cursor: pointer; transition: transform var(--ocr-transition), background var(--ocr-transition), filter var(--ocr-transition);
+  touch-action: manipulation;     /* pas d'attente du « double-tap zoom » */
 }
-.ocr-btn:hover:not(:disabled) { transform: translateY(-2px); }
 .ocr-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 
 .ocr-btn--primaire { background: var(--ocr-grad-rouge); color: #fff; box-shadow: var(--ocr-ombre-btn); }
-.ocr-btn--primaire:hover:not(:disabled) { filter: brightness(1.08); }
 .ocr-btn--secondaire { background: rgba(244,244,245,.05); color: var(--ocr-blanc); border-color: var(--ocr-filet); }
-.ocr-btn--secondaire:hover:not(:disabled) { background: rgba(244,244,245,.09); border-color: rgba(214,32,30,.5); }
 .ocr-btn--fantome { background: none; color: var(--ocr-argent); }
-.ocr-btn--fantome:hover:not(:disabled) { color: var(--ocr-blanc); }
 .ocr-btn--wa { background: #25D366; color: #06351B; }
-.ocr-btn--wa:hover:not(:disabled) { filter: brightness(1.06); }
+
+/* Le survol n'existe QUE là où il y a un pointeur (souris). Sur un téléphone,
+   un appui déclenchait le :hover — et le laissait collé après le doigt : le
+   bouton restait soulevé, l'écran semblait « ne pas répondre ». C'était le
+   principal défaut de fluidité au toucher (constat du 13/08). */
+@media (hover: hover) and (pointer: fine) {
+  .ocr-btn:hover:not(:disabled) { transform: translateY(-2px); }
+  .ocr-btn--primaire:hover:not(:disabled) { filter: brightness(1.08); }
+  .ocr-btn--secondaire:hover:not(:disabled) { background: rgba(244,244,245,.09); border-color: rgba(214,32,30,.5); }
+  .ocr-btn--fantome:hover:not(:disabled) { color: var(--ocr-blanc); }
+  .ocr-btn--wa:hover:not(:disabled) { filter: brightness(1.06); }
+}
 .ocr-btn--bloc { width: 100%; }
 .ocr-btn--petit { min-height: 40px; padding: 9px 15px; font-size: 12.5px; }
 
@@ -192,7 +200,9 @@
   transition: border-color var(--ocr-transition), transform var(--ocr-transition);
 }
 .ocr-carte--cliquable { cursor: pointer; }
-.ocr-carte--cliquable:hover { transform: translateY(-3px); border-color: rgba(214,32,30,.5); }
+@media (hover: hover) and (pointer: fine) {
+  .ocr-carte--cliquable:hover { transform: translateY(-3px); border-color: rgba(214,32,30,.5); }
+}
 .ocr-carte--vedette { border-color: rgba(214,32,30,.55); background:
   linear-gradient(180deg, rgba(214,32,30,.07), transparent 45%), var(--ocr-surface); }
 .ocr-carte--panneau { border-radius: var(--ocr-r-l); padding: var(--ocr-e6); }
@@ -208,9 +218,11 @@
   min-height: 40px; padding: 8px 16px; border-radius: var(--ocr-r-p);
   background: var(--ocr-surface); border: 1px solid var(--ocr-filet);
   color: var(--ocr-argent); font: var(--ocr-t-petit); font-weight: 600;
-  cursor: pointer; transition: var(--ocr-transition);
+  cursor: pointer; transition: var(--ocr-transition); touch-action: manipulation;
 }
-.ocr-chip:hover { color: var(--ocr-blanc); border-color: rgba(214,32,30,.45); }
+@media (hover: hover) and (pointer: fine) {
+  .ocr-chip:hover { color: var(--ocr-blanc); border-color: rgba(214,32,30,.45); }
+}
 .ocr-chip[aria-pressed="true"], .ocr-chip.est-actif {
   background: var(--ocr-rouge); border-color: var(--ocr-rouge); color: #fff;
 }
@@ -344,6 +356,11 @@
 .ocr-btn--primaire:hover { background: linear-gradient(180deg, #EC4540, #D6201E); }
 .ocr-btn:active { transform: scale(.97); }
 .ocr-chip[aria-pressed="true"] { box-shadow: 0 4px 14px rgba(214,32,30,.3); }
+/* L'appui doit se voir AVANT que le code ne réponde : c'est ce qui fait la
+   différence entre « ça rame » et « ça répond ». Rendu par le compositeur,
+   donc instantané même si le fil principal travaille. */
+.ocr-chip:active, .fiche:active, .presta:active, .ocr-carte--cliquable:active { transform: scale(.985); }
+.fiche, .presta { touch-action: manipulation; }
 
 .voile { animation: ocrVoile .16s ease-out; }
 .boite { animation: ocrBoite .22s cubic-bezier(.2,.9,.3,1.15); }
@@ -404,7 +421,7 @@ html,body{margin:0;padding:0;min-height:100dvh}
 body{padding-bottom:env(safe-area-inset-bottom)}
 .masque{display:none!important}
 
-.entete{position:sticky;top:0;z-index:30;background:rgba(10,10,11,.92);backdrop-filter:blur(14px);
+.entete{position:sticky;top:0;z-index:30;background:#0B0B0C;
   border-bottom:1px solid var(--ocr-filet);
   padding:10px calc(var(--ocr-e4) + env(safe-area-inset-right)) 10px calc(var(--ocr-e4) + env(safe-area-inset-left));
   padding-top:calc(10px + env(safe-area-inset-top));
@@ -414,7 +431,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .ocr-saisie.plaque{text-transform:uppercase;letter-spacing:.1em;
   font-variant-numeric:tabular-nums;font-weight:600}
 /* ---- Mon espace : feuille modale + reçu imprimable ---- */
-.voile-espace{position:fixed;inset:0;background:rgba(5,5,6,.72);backdrop-filter:blur(4px);z-index:100;
+.voile-espace{position:fixed;inset:0;background:rgba(5,5,6,.86);z-index:100;
   display:grid;place-items:center;padding:var(--ocr-e4);animation:ocrVoile .16s ease-out}
 .boite-espace{width:100%;max-width:430px;max-height:88dvh;overflow:auto}
 @media print{
@@ -518,7 +535,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .heure[aria-pressed="true"]{border-color:var(--ocr-rouge);background:var(--ocr-rouge)}
 
 .total-collant{position:sticky;bottom:0;margin:var(--ocr-e5) calc(-1*var(--ocr-e4)) 0;
-  background:rgba(16,16,18,.96);backdrop-filter:blur(14px);border-top:1px solid var(--ocr-filet);
+  background:#101012;border-top:1px solid var(--ocr-filet);
   padding:14px var(--ocr-e4) calc(14px + env(safe-area-inset-bottom));
   display:flex;align-items:center;gap:var(--ocr-e3)}
 
@@ -1432,7 +1449,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v11';
+const VERSION = 'v12';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
