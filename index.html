@@ -1090,6 +1090,294 @@ function lienWhatsApp(message) {
   return 'https://wa.me/' + MARQUE.whatsapp + (message ? '?text=' + encodeURIComponent(message) : '');
 }
 
+
+/* ─────────────────────────────────────────────────────────────
+   MARQUES ET MODÈLES — le parc automobile béninois (13/08)
+
+   Le port de Cotonou fait du pays un marché d'occasion : le parc est
+   massivement japonais et européen, avec Toyota très largement devant. Cette
+   liste sert d'aide à la frappe (le champ reste libre : une marque absente
+   s'écrit quand même). Elle est complétée automatiquement par les marques et
+   modèles DÉJÀ présents dans la base de l'atelier — la liste s'améliore donc
+   toute seule au fil des lavages.
+   ───────────────────────────────────────────────────────────── */
+const MARQUES = [
+  /* Chaque modèle est rangé dans SA taille de facturation — c'est ce qui
+     permet de déduire le tarif dès que la marque et le modèle sont connus,
+     sans plus poser la question au client. Les tailles sont celles de la
+     grille OCR : petite (Corolla, Civic, Rio), berline/SUV compact (Camry,
+     RAV4, Tucson), grand SUV/pick-up (Land Cruiser, Hilux, Prado),
+     camionnette (Hiace, Sprinter, fourgon), moto. */
+  { nom: 'Toyota', gab: {
+      petite: ['Corolla', 'Yaris', 'Vitz', 'Auris', 'Belta', 'Probox'],
+      berline: ['Camry', 'Avensis', 'RAV4', 'Prius', 'Rush', 'C-HR', 'Venza'],
+      grandsuv: ['Land Cruiser', 'Prado', 'Highlander', '4Runner', 'Fortuner', 'Sequoia', 'Tundra', 'Hilux'],
+      camionnette: ['Hiace', 'Sienna', 'Dyna', 'Coaster'] } },
+  { nom: 'Hyundai', gab: {
+      petite: ['i10', 'i20', 'Accent', 'Elantra', 'Getz', 'Verna'],
+      berline: ['Tucson', 'Sonata', 'Creta', 'Kona', 'ix35'],
+      grandsuv: ['Santa Fe', 'Palisade', 'Terracan'],
+      camionnette: ['H1', 'H100', 'Starex'] } },
+  { nom: 'Kia', gab: {
+      petite: ['Rio', 'Picanto', 'Cerato', 'Soul', 'Pride'],
+      berline: ['Sportage', 'Optima', 'Seltos', 'Niro'],
+      grandsuv: ['Sorento', 'Mohave', 'Telluride'],
+      camionnette: ['Carnival', 'K2500', 'Pregio'] } },
+  { nom: 'Nissan', gab: {
+      petite: ['Almera', 'Micra', 'Note', 'Sunny', 'Tiida', 'Versa'],
+      berline: ['Qashqai', 'X-Trail', 'Juke', 'Altima', 'Rogue', 'Kicks'],
+      grandsuv: ['Patrol', 'Pathfinder', 'Navara', 'Murano'],
+      camionnette: ['Urvan', 'NV200', 'Caravan'] } },
+  { nom: 'Peugeot', gab: {
+      petite: ['206', '207', '208', '301', '306', '307'],
+      berline: ['308', '3008', '406', '407', '508', '2008'],
+      grandsuv: ['5008'],
+      camionnette: ['Partner', 'Expert', 'Boxer', 'Bipper'] } },
+  { nom: 'Mercedes-Benz', gab: {
+      petite: ['Classe A', 'Classe B', 'CLA'],
+      berline: ['Classe C', 'Classe E', 'GLA', 'GLC', 'GLK'],
+      grandsuv: ['Classe S', 'ML', 'GLE', 'GLS', 'Classe G'],
+      camionnette: ['Sprinter', 'Vito', 'Viano'] } },
+  { nom: 'Renault', gab: {
+      petite: ['Clio', 'Symbol', 'Logan', 'Sandero', 'Twingo'],
+      berline: ['Mégane', 'Duster', 'Captur', 'Laguna', 'Koleos'],
+      camionnette: ['Kangoo', 'Trafic', 'Master'] } },
+  { nom: 'Volkswagen', gab: {
+      petite: ['Polo', 'Golf', 'Up', 'Jetta'],
+      berline: ['Passat', 'Tiguan', 'T-Roc', 'Bora'],
+      grandsuv: ['Touareg', 'Amarok', 'Atlas'],
+      camionnette: ['Transporter', 'Caddy', 'Crafter'] } },
+  { nom: 'Ford', gab: {
+      petite: ['Fiesta', 'Focus', 'Ka'],
+      berline: ['Escape', 'Kuga', 'EcoSport', 'Fusion', 'Mondeo', 'Edge'],
+      grandsuv: ['Explorer', 'Ranger', 'Everest', 'F-150', 'Expedition'],
+      camionnette: ['Transit', 'Tourneo'] } },
+  { nom: 'Honda', gab: {
+      petite: ['Civic', 'Fit', 'Jazz', 'City'],
+      berline: ['Accord', 'CR-V', 'HR-V', 'Insight'],
+      grandsuv: ['Pilot', 'Passport', 'Ridgeline'],
+      camionnette: ['Odyssey'] } },
+  { nom: 'BMW', gab: {
+      petite: ['Série 1', 'Série 2'],
+      berline: ['Série 3', 'Série 4', 'Série 5', 'X1', 'X2', 'X3'],
+      grandsuv: ['Série 7', 'X5', 'X6', 'X7'] } },
+  { nom: 'Mitsubishi', gab: {
+      petite: ['Lancer', 'Mirage', 'Colt'],
+      berline: ['ASX', 'Outlander', 'Eclipse Cross'],
+      grandsuv: ['Pajero', 'Montero', 'L200', 'Triton'],
+      camionnette: ['Canter', 'L300'] } },
+  { nom: 'Suzuki', gab: {
+      petite: ['Swift', 'Alto', 'Celerio', 'Baleno', 'Ciaz'],
+      berline: ['Vitara', 'S-Cross', 'Jimny', 'Ertiga'],
+      camionnette: ['Carry', 'APV'] } },
+  { nom: 'Opel', gab: {
+      petite: ['Corsa', 'Astra', 'Meriva'],
+      berline: ['Insignia', 'Mokka', 'Zafira', 'Grandland'],
+      camionnette: ['Vivaro', 'Movano'] } },
+  { nom: 'Citroën', gab: {
+      petite: ['C1', 'C3', 'C-Elysée'],
+      berline: ['C4', 'C5', 'C4 Cactus', 'C5 Aircross'],
+      camionnette: ['Berlingo', 'Jumpy', 'Jumper'] } },
+  { nom: 'Audi', gab: {
+      petite: ['A1', 'A3'],
+      berline: ['A4', 'A5', 'A6', 'Q2', 'Q3'],
+      grandsuv: ['A8', 'Q5', 'Q7', 'Q8'] } },
+  { nom: 'Mazda', gab: {
+      petite: ['2', '3', 'Demio', 'Axela'],
+      berline: ['6', 'CX-3', 'CX-30', 'CX-5', 'Atenza'],
+      grandsuv: ['CX-7', 'CX-9', 'BT-50'],
+      camionnette: ['Bongo'] } },
+  { nom: 'Chevrolet', gab: {
+      petite: ['Aveo', 'Spark', 'Sonic', 'Cruze', 'Optra'],
+      berline: ['Captiva', 'Trax', 'Equinox', 'Malibu'],
+      grandsuv: ['Tahoe', 'Suburban', 'Silverado', 'Trailblazer'],
+      camionnette: ['N300', 'Express'] } },
+  { nom: 'Lexus', gab: {
+      berline: ['IS', 'ES', 'NX', 'UX'],
+      grandsuv: ['RX', 'GX', 'LX', 'LS'] } },
+  { nom: 'Land Rover', gab: {
+      berline: ['Freelander', 'Evoque', 'Discovery Sport'],
+      grandsuv: ['Range Rover', 'Range Rover Sport', 'Discovery', 'Defender'] } },
+  { nom: 'Isuzu', gab: {
+      grandsuv: ['D-Max', 'Trooper', 'MU-X'],
+      camionnette: ['NPR', 'NKR', 'Elf'] } },
+  { nom: 'Daihatsu', gab: {
+      petite: ['Sirion', 'Mira', 'Charade'],
+      berline: ['Terios', 'Rocky'],
+      camionnette: ['Gran Max', 'Hijet'] } },
+  { nom: 'Fiat', gab: {
+      petite: ['Panda', 'Punto', '500', 'Tipo'],
+      berline: ['500X', 'Freemont'],
+      camionnette: ['Doblo', 'Ducato', 'Fiorino'] } },
+  { nom: 'Volvo', gab: {
+      petite: ['V40', 'S40'],
+      berline: ['S60', 'S80', 'XC40', 'XC60'],
+      grandsuv: ['XC90'] } },
+  { nom: 'Skoda', gab: {
+      petite: ['Fabia', 'Rapid'],
+      berline: ['Octavia', 'Superb', 'Karoq'],
+      grandsuv: ['Kodiaq'] } },
+  { nom: 'Jeep', gab: {
+      berline: ['Compass', 'Renegade', 'Cherokee'],
+      grandsuv: ['Grand Cherokee', 'Wrangler', 'Gladiator'] } },
+  { nom: 'Dacia', gab: {
+      petite: ['Logan', 'Sandero'],
+      berline: ['Duster', 'Lodgy'],
+      camionnette: ['Dokker'] } },
+  { nom: 'Chery', gab: {
+      petite: ['QQ', 'Arrizo'],
+      berline: ['Tiggo', 'Tiggo 4', 'Tiggo 7'],
+      grandsuv: ['Tiggo 8'] } },
+  { nom: 'Geely', gab: {
+      petite: ['Emgrand'],
+      berline: ['Coolray', 'Azkarra'],
+      grandsuv: ['Okavango'] } },
+  { nom: 'BYD', gab: {
+      petite: ['Dolphin', 'Seagull'],
+      berline: ['Atto 3', 'Seal', 'Song'],
+      grandsuv: ['Tang'] } },
+  { nom: 'Tata', gab: {
+      petite: ['Indica', 'Tiago'],
+      grandsuv: ['Xenon', 'Safari'],
+      camionnette: ['Super Ace', 'Ace'] } },
+  { nom: 'Iveco', gab: { camionnette: ['Daily', 'Eurocargo'] } },
+  // motos et tricycles — l'essentiel du parc deux-roues béninois
+  { nom: 'Haojue', moto: true, gab: { moto: ['DK 150', 'Lucky 110', 'HJ 125', 'TR 150', 'KA 150'] } },
+  { nom: 'Bajaj', moto: true, gab: { moto: ['Boxer', 'Boxer 100', 'Boxer 150', 'Pulsar', 'CT 100', 'Discover', 'RE (tricycle)'] } },
+  { nom: 'Sanili', moto: true, gab: { moto: ['SL 125', 'SL 150', 'Star'] } },
+  { nom: 'Apsonic', moto: true, gab: { moto: ['AP 110', 'AP 125', 'AP 150', 'Tricycle'] } },
+  { nom: 'TVS', moto: true, gab: { moto: ['Star HLX', 'Apache', 'Sport', 'King (tricycle)'] } },
+  { nom: 'Yamaha', moto: true, gab: { moto: ['Crux', 'YBR 125', 'Crypton', 'DT 125', 'Nmax'] } },
+  { nom: 'Honda', moto: true, gab: { moto: ['CG 125', 'ACE 110', 'CB 125', 'XR 125', 'PCX'] } },
+  { nom: 'Suzuki', moto: true, gab: { moto: ['GN 125', 'AX 100', 'Burgman'] } },
+  { nom: 'Jincheng', moto: true, gab: { moto: ['JC 110', 'JC 125'] } },
+  { nom: 'Lifan', moto: true, gab: { moto: ['LF 125', 'KPR 150'] } },
+  { nom: 'Dayun', moto: true, gab: { moto: ['DY 110', 'DY 150'] } },
+  { nom: 'Royal', moto: true, gab: { moto: ['RY 110', 'RY 125'] } },
+  { nom: 'KTM', moto: true, gab: { moto: ['Duke 125', 'Duke 200'] } },
+].map(m => ({ ...m, modeles: Object.values(m.gab).flat() }));
+
+/* CATALOGUE VIVANT (13/08) — la liste ci-dessus est le point de départ et le
+   secours hors ligne ; l'atelier en ajoute et en corrige depuis l'application
+   (table modeles_vehicules). Les deux apps appellent OCR.poserCatalogue() au
+   démarrage, et tout le reste — suggestions, orthographe, taille déduite —
+   consulte l'ensemble fusionné. Une seule règle : ZÉRO DOUBLON, arbitré sur la
+   forme normalisée, l'entrée de l'atelier gagnant sur celle du socle. */
+let CATALOGUE = MARQUES;          // fusion socle + base, recalculée à l'injection
+let CATA_SOURCE = [];             // ce qui vient de la base, tel quel
+
+function poserCatalogue(lignes) {
+  CATA_SOURCE = Array.isArray(lignes) ? lignes : [];
+  const parMarque = new Map();    // clé marque → { nom, moto, gab }
+  const vus = new Set();          // clé marque|modèle → anti-doublon
+  const ajouter = (nom, modele, g, prioritaire) => {
+    const km = clefTexte(nom), kmo = clefTexte(modele || '');
+    if (!km) return;
+    // une marque peut exister en voiture ET en moto (Honda, Suzuki, Yamaha) :
+    // la clé d'unicité inclut donc le type.
+    const type = g === 'moto' ? 'm' : 'v';
+    const cleM = km + '|' + type;
+    let e = parMarque.get(cleM);
+    if (!e) { e = { nom, moto: g === 'moto', gab: {} }; parMarque.set(cleM, e); }
+    if (prioritaire) e.nom = nom;                       // l'atelier fixe l'orthographe
+    if (!modele) return;
+    const cle = km + '|' + kmo;
+    if (vus.has(cle) && !prioritaire) return;
+    if (vus.has(cle)) {                                  // l'atelier corrige la taille
+      Object.keys(e.gab).forEach(gg => { e.gab[gg] = e.gab[gg].filter(x => clefTexte(x) !== kmo); });
+    }
+    vus.add(cle);
+    (e.gab[g] || (e.gab[g] = [])).push(modele);
+  };
+  // la base d'abord (elle a le dernier mot), le socle ensuite pour compléter
+  CATA_SOURCE.forEach(l => ajouter(String(l.marque || '').trim(), String(l.modele || '').trim(),
+                                   l.gabarit, true));
+  MARQUES.forEach(m => Object.keys(m.gab).forEach(g => m.gab[g].forEach(mo => ajouter(m.nom, mo, g, false))));
+  CATALOGUE = [...parMarque.values()].map(m => ({ ...m, modeles: Object.values(m.gab).flat() }));
+  return CATALOGUE;
+}
+const catalogue = () => CATALOGUE;
+const catalogueSource = () => CATA_SOURCE;
+
+// Sans accents ni ponctuation : « mercedes benz », « MERCEDES-BENZ » et
+// « Mercédès Benz » doivent tomber sur la même marque.
+function clefTexte(t) {
+  return String(t == null ? '' : t).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+// Les marques à proposer selon le gabarit : une moto n'a rien à faire dans la
+// liste d'une berline, et inversement.
+function marques(gabarit) {
+  const moto = gabarit === 'moto';
+  // ordre : le socle d'abord (fréquence au Bénin), les ajouts de l'atelier ensuite
+  const ordre = new Map(MARQUES.map((m, i) => [clefTexte(m.nom), i]));
+  return CATALOGUE.filter(m => !!m.moto === moto)
+    .sort((a, b) => (ordre.has(clefTexte(a.nom)) ? ordre.get(clefTexte(a.nom)) : 999) -
+                    (ordre.has(clefTexte(b.nom)) ? ordre.get(clefTexte(b.nom)) : 999))
+    .map(m => m.nom);
+}
+// Honda, Suzuki et Yamaha font des voitures ET des motos : on rend l'entrée qui
+// correspond au gabarit choisi, sinon la première trouvée.
+function trouverMarque(nom, gabarit) {
+  const k = clefTexte(nom);
+  if (!k) return null;
+  const exact = CATALOGUE.filter(m => clefTexte(m.nom) === k);
+  if (!exact.length) return null;
+  const moto = gabarit === 'moto';
+  return exact.find(m => !!m.moto === moto) || exact[0];
+}
+// L'orthographe officielle si la marque est connue, sinon ce qui a été tapé
+// (jamais de blocage) — c'est ce qui évite « toyota », « TOYOTA » et « Toyota »
+// comme trois marques différentes.
+function marqueCanon(nom, gabarit) {
+  const m = trouverMarque(nom, gabarit);
+  return m ? m.nom : String(nom == null ? '' : nom).trim();
+}
+function modeles(marque, gabarit) {
+  const m = trouverMarque(marque, gabarit);
+  if (m) return m.modeles.slice();
+  // marque inconnue ou pas encore tapée : on propose les modèles du bon type
+  const moto = gabarit === 'moto';
+  return CATALOGUE.filter(x => !!x.moto === moto).flatMap(x => x.modeles).slice(0, 160);
+}
+/* LA TAILLE DÉDUITE DU MODÈLE (13/08) — « ça éviterait les questions au
+   niveau du prix, donc c'est sans surprise ». On rend la taille de
+   facturation quand le modèle est reconnu, sinon rien (jamais de devinette
+   sur un modèle inconnu : mieux vaut laisser choisir que se tromper de prix). */
+function gabaritDe(marque, modele) {
+  const km = clefTexte(modele);
+  if (!km) return null;
+  // Honda fait des voitures ET des motos : on cherche dans TOUTES les entrées
+  // qui portent ce nom, c'est le modèle qui tranche (« CG 125 » → moto).
+  const k = clefTexte(marque);
+  const listes = k ? CATALOGUE.filter(x => clefTexte(x.nom) === k) : [];
+  if (!listes.length) listes.push(...CATALOGUE);
+  // 1 · le modèle exact, dans la bonne marque d'abord
+  for (const mq of listes)
+    for (const g of Object.keys(mq.gab))
+      if (mq.gab[g].some(x => clefTexte(x) === km)) return g;
+  // 2 · une finition (« Corolla LE », « Hilux Double Cabine ») : on retient le
+  //     modèle connu le plus long qui commence la saisie.
+  let meilleur = null;
+  for (const mq of listes)
+    for (const g of Object.keys(mq.gab))
+      for (const x of mq.gab[g]) {
+        const kx = clefTexte(x);
+        if (kx.length >= 4 && km.startsWith(kx) && (!meilleur || kx.length > meilleur.k))
+          meilleur = { k: kx.length, g };
+      }
+  return meilleur ? meilleur.g : null;
+}
+
+function modeleCanon(marque, modele, gabarit) {
+  const k = clefTexte(modele);
+  if (!k) return '';
+  const m = trouverMarque(marque, gabarit);
+  const liste = m ? m.modeles : CATALOGUE.flatMap(x => x.modeles);
+  return liste.find(x => clefTexte(x) === k) || String(modele).trim();
+}
+
 /* ─────────────────────────────────────────────────────────────
    7 · EXPORT
    ───────────────────────────────────────────────────────────── */
@@ -1106,6 +1394,8 @@ const API = {
   reference, lireReference, lienWhatsApp,
   plaque, plaqueEtat, PLAQUE_EXEMPLES,
   GROUPES_LAVAGE, groupeLavage,
+  MARQUES, marques, modeles, marqueCanon, modeleCanon, trouverMarque, gabaritDe,
+  poserCatalogue, catalogue, catalogueSource, clefTexte,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
@@ -1319,6 +1609,21 @@ function creerSupabasePublicDemo() {
       try { return Promise.resolve({ data: RPC[nom](args || {}), error: null }); }
       catch (ex) { return Promise.resolve({ data: null, error: { message: ex.message } }); }
     },
+    /* Lecture publique du catalogue des véhicules : en démonstration, on rend
+       la liste du socle (c'est ce que la vraie base contient au départ) plus
+       une marque « ajoutée par l'atelier », pour montrer que ça circule. */
+    from(table) {
+      const lignes = table !== 'modeles_vehicules' ? [] :
+        OCR.MARQUES.flatMap(m => Object.keys(m.gab).flatMap(g =>
+          m.gab[g].map(mo => ({ marque: m.nom, modele: mo, gabarit: g }))))
+          .concat([{ marque: 'Changan', modele: 'CS35 Plus', gabarit: 'berline' }]);
+      const api = {
+        select() { return api; }, order() { return api; }, limit() { return api; },
+        eq() { return api; }, gte() { return api; }, lte() { return api; },
+        then(res) { return Promise.resolve({ data: lignes, error: null }).then(res); },
+      };
+      return api;
+    },
   };
 }
 </script>
@@ -1449,11 +1754,12 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v12';
+const VERSION = 'v15';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
-               vehChoisi: null, vehSauver: true, paiement: 'acompte' };   // 'acompte' | 'tout'
+               vehChoisi: null, vehSauver: true, paiement: 'acompte',   // 'acompte' | 'tout'
+               gabaritManuel: false, gabaritDeduit: null };   // taille : choisie, ou reconnue d'après le modèle
 let etape = 1, confirmation = null, enCours = false, detailOuvert = null;
 const suivi = { ref: '', tel: '', fiche: null, cherche: false };
 
@@ -1597,10 +1903,66 @@ document.addEventListener('click', ev => {
    à l'accueil plutôt que de fermer l'app installée — jamais de sortie surprise. */
 window.addEventListener('popstate', () => {
   if (retourInterne) { retourInterne = false; return; }   // c'était nous, pas un vrai geste retour
-  const f = document.querySelector('.voile-espace:last-child');
+  /* La DERNIÈRE feuille ouverte — pas « :last-child » : les listes de
+     suggestions marques/modèles (<datalist>) vivent aussi au bout du <body>,
+     et depuis leur arrivée le geste retour ne trouvait plus la feuille : il
+     renvoyait à l'accueil en laissant le voile collé à l'écran (13/08). */
+  const feuilles = document.querySelectorAll('.voile-espace');
+  const f = feuilles.length ? feuilles[feuilles.length - 1] : null;
   if (f) { f.remove(); return; }
   if (vue !== 'accueil') { vue = 'accueil'; rendre(); window.scrollTo(0, 0); }
 });
+
+/* Le catalogue des marques et modèles vient de la base (lecture publique) :
+   les ajouts faits à l'atelier — nouvelles marques chinoises, corrections de
+   taille — profitent donc aussi aux clients, sans nouvelle version de l'app. */
+async function chargerCatalogue() {
+  try {
+    const { data } = await sb.from('modeles_vehicules').select('marque,modele,gabarit');
+    if (data && data.length) OCR.poserCatalogue(data);
+  } catch (e) {}
+}
+
+/* Suggestions marque/modèle : liste native, filtrée en tapant, jamais
+   bloquante, et l'orthographe se remet au propre à la sortie du champ (« toyota »
+   → « Toyota ») pour que le même véhicule ne s'écrive pas de trois façons. */
+function brancherMarqueModele(elMarque, elModele, gabarit, poserGabarit) {
+  if (!elMarque && !elModele) return;
+  const cle = (elMarque ? elMarque.id : 'x') + '-' + (elModele ? elModele.id : 'x');
+  const trouver = (id) => {
+    let d = document.getElementById(id);
+    if (!d) { d = document.createElement('datalist'); d.id = id; document.body.appendChild(d); }
+    return d;
+  };
+  const dlM = trouver('dlm-' + cle), dlD = trouver('dld-' + cle);
+  if (elMarque) { elMarque.setAttribute('list', dlM.id); elMarque.setAttribute('autocomplete', 'off'); }
+  if (elModele) { elModele.setAttribute('list', dlD.id); elModele.setAttribute('autocomplete', 'off'); }
+  const gab = () => (typeof gabarit === 'function' ? gabarit() : gabarit);
+  const opts = vs => [...new Set(vs.filter(Boolean))].slice(0, 200)
+    .map(v => '<option value="' + esc(v) + '"></option>').join('');
+  const peindre = () => {
+    dlM.innerHTML = opts(OCR.marques(gab()));
+    dlD.innerHTML = opts(OCR.modeles(elMarque ? elMarque.value : '', gab()));
+  };
+  peindre();
+  const deduire = () => {
+    if (!poserGabarit) return;
+    const ma = elMarque ? elMarque.value : '', mo = elModele ? elModele.value : '';
+    const g = OCR.gabaritDe(ma, mo);
+    if (g && g !== gab()) poserGabarit(g, [ma, mo].filter(Boolean).join(' '));
+  };
+  if (elMarque) {
+    elMarque.addEventListener('input', peindre);
+    elMarque.addEventListener('change', () => {
+      elMarque.value = OCR.marqueCanon(elMarque.value, gab()); peindre(); deduire();
+    });
+  }
+  if (elModele) elModele.addEventListener('change', () => {
+    elModele.value = OCR.modeleCanon(elMarque ? elMarque.value : '', elModele.value, gab());
+    deduire();
+  });
+  return peindre;
+}
 
 /* ==========================================================================
    ACCUEIL — vitrine et tarifs
@@ -1765,6 +2127,9 @@ function vueEtapePrestation() {
           <label class="ocr-champ"><span class="ocr-label">Modèle</span>
             <input class="ocr-saisie" id="vModele" value="${esc(resa.modele)}"></label>
         </div>
+        ${resa.gabaritDeduit ? `<p class="ocr-mini" style="margin:0 0 var(--ocr-e3);color:var(--ocr-succes)">
+          ✓ Taille reconnue d'après « ${esc(resa.gabaritDeduit)} » : ${esc((OCR.gabarit(resa.gabarit) || {}).nom)}.
+          Le prix affiché est donc le bon — tu peux corriger la taille au-dessus si besoin.</p>` : ''}
         <label class="ocr-champ" style="margin-bottom:var(--ocr-e3)"><span class="ocr-label">Immatriculation</span>
           <input class="ocr-saisie" id="vImmat" value="${esc(resa.immat)}"
                  placeholder="${resa.gabarit === 'moto' ? OCR.PLAQUE_EXEMPLES.moto : OCR.PLAQUE_EXEMPLES.voiture}">
@@ -1819,9 +2184,18 @@ function vueEtapePrestation() {
   // gabarits (nouveau véhicule)
   $('#vue').querySelectorAll('[data-gab]').forEach(b => b.addEventListener('click', () => {
     resa.gabarit = b.dataset.gab;
+    resa.gabaritManuel = true; resa.gabaritDeduit = null;   // son choix l'emporte
     if (resa.prestation && OCR.prix(resa.prestation, resa.gabarit) == null) resa.prestation = null;
     resa.heure = null; vueEtapePrestation();
   }));
+  brancherMarqueModele($('#vMarque'), $('#vModele'), () => resa.gabarit, (g, quoi) => {
+    // Le prix dépend de la taille : on la pose, on le dit, et le total se
+    // recalcule sous ses yeux. Il peut toujours corriger d'un doigt.
+    if (resa.gabaritManuel) return;
+    resa.gabarit = g; resa.gabaritDeduit = quoi;
+    resa.marque = $('#vMarque').value; resa.modele = $('#vModele').value;
+    vueEtapePrestation();
+  });
   ['vMarque:marque', 'vModele:modele'].forEach(pr => {
     const [id, k] = pr.split(':');
     const el = $('#' + id); if (el) el.addEventListener('input', e => { resa[k] = e.target.value; });
@@ -2562,8 +2936,17 @@ function boiteAjoutVehiculeEspace() {
     gab = b.dataset.avg;
     v.querySelectorAll('[data-avg]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.avg === gab)));
     v.querySelector('#avI').placeholder = gab === 'moto' ? OCR.PLAQUE_EXEMPLES.moto : OCR.PLAQUE_EXEMPLES.voiture;
+    v.__gabManuel = true;
+    if (repeindreAv) repeindreAv();
     majAideAvI();
   }));
+  const repeindreAv = brancherMarqueModele(v.querySelector('#avM'), v.querySelector('#avMo'), () => gab,
+    (g) => {
+      if (v.__gabManuel) return;
+      gab = g;
+      v.querySelectorAll('[data-avgab]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.avgab === gab)));
+      majAideAvI();
+    });
   brancherPlaque(v.querySelector('#avI'), majAideAvI);
   v.querySelector('[data-ok]').addEventListener('click', async ev => {
     ev.target.disabled = true;
@@ -2713,6 +3096,9 @@ function fermerFeuille(v) {
     sb = window.supabase.createClient(CONFIG_SUPABASE.url, CONFIG_SUPABASE.cle);
   }
   rendre();
+  // Le catalogue des véhicules (marques, modèles, tailles) en arrière-plan :
+  // l'écran s'affiche tout de suite, les suggestions s'enrichissent après.
+  chargerCatalogue().then(() => { if (vue === 'reserver') rendre(); });
   // Déjà connecté sur ce téléphone ? On récupère tout en arrière-plan.
   if (espace.jeton) {
     const ok = await chargerEspace();
