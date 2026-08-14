@@ -260,6 +260,9 @@
   border-radius: var(--ocr-r-m); color: var(--ocr-blanc);
   font: var(--ocr-t-corps); outline: none; transition: var(--ocr-transition);
 }
+/* 16 px minimum : en dessous, Safari iOS zoome toute la page dès qu'on touche
+   un champ — et il faut pincer pour revenir. Vu sur l'iPhone d'Edwin (14/08). */
+.ocr-saisie { font-size: 16px; }
 .ocr-saisie::placeholder { color: var(--ocr-argent-2); }
 .ocr-saisie:focus { border-color: var(--ocr-rouge); }
 .ocr-saisie:disabled { opacity: .45; cursor: not-allowed; }
@@ -1878,7 +1881,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v18';
+const VERSION = 'v19';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
