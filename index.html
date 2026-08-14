@@ -1881,7 +1881,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v19';
+const VERSION = 'v20';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
@@ -2197,8 +2197,10 @@ function vueAccueil() {
 
     <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
       <div class="ocr-surtitre">Fidélité</div>
-      <p class="ocr-petit" style="margin:10px 0 0">Chaque lavage Signature ou plus = 1 tampon, chaque Express = ½ tampon.
-        <strong style="color:var(--ocr-blanc)">Au 10ᵉ tampon, le lavage est offert.</strong> Rien à présenter : ton numéro de téléphone suffit.</p>
+      <p class="ocr-petit" style="margin:10px 0 0">Chaque Signature, Deep ou Pack = 1 tampon ·
+        chaque Express = ½ tampon — voiture comme moto.
+        <strong style="color:var(--ocr-blanc)">Au 10ᵉ tampon, ton Lavage Signature est offert.</strong>
+        Rien à présenter : ton numéro de téléphone suffit.</p>
     </div>
 
     <div class="ocr-carte" style="margin-top:var(--ocr-e4)">
@@ -3000,6 +3002,9 @@ function vueEspaceDedans() {
   const tampons = Number(f.tampons) || 0;
   const reste = Math.max(0, seuil - tampons);
   const part = Math.min(100, Math.round(tampons / seuil * 100));
+  const gabCadeau = ((d.vehicules || [])[0] || {}).gabarit || 'berline';
+  const cadeauNom = (OCR.prestation(gabCadeau === 'moto' ? 'moto-signature' : 'signature') || {}).nom
+                 || 'Lavage Signature';
   const passages = (d.passages || []).filter(p => !p.annule);
   const resasVives = (d.reservations || []).filter(r => ['en_attente_paiement', 'confirmee'].includes(r.statut));
 
@@ -3027,10 +3032,14 @@ function vueEspaceDedans() {
         <div style="height:100%;width:${part}%;border-radius:999px;transition:width .4s;
           background:${reste === 0 ? 'var(--ocr-succes)' : 'var(--ocr-rouge)'}"></div>
       </div>
+      ${/* Le cadeau porte un nom, et c'est celui de SON véhicule : une moto
+           gagne un Signature moto, une berline un Signature berline. Une
+           promesse vague se transforme en discussion au comptoir. */''}
       <p class="ocr-petit" style="margin:10px 0 0">${reste === 0
-        ? '🎁 <strong>Ton lavage offert est disponible</strong> — demande-le à ta prochaine visite !'
-        : 'Encore ' + String(reste).replace('.', ',') + ' lavage(s) avant ton lavage offert.'}</p>
-      <p class="ocr-mini" style="margin:6px 0 0">Un Signature ou mieux = 1 · un Express = ½.
+        ? '🎁 <strong>Ton ' + esc(cadeauNom) + ' offert est disponible</strong> — demande-le à ta prochaine visite !'
+        : 'Encore ' + String(reste).replace('.', ',') + ' lavage(s) avant ton <strong style="color:var(--ocr-blanc)">'
+          + esc(cadeauNom) + ' offert</strong>.'}</p>
+      <p class="ocr-mini" style="margin:6px 0 0">Signature, Deep ou Pack = 1 · Express = ½ — voiture comme moto.
         ${f.depense ? 'Total dépensé chez nous : ' + OCR.fcfa(f.depense) + '.' : ''}</p>
     </div>
 
