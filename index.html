@@ -895,6 +895,26 @@ const CONFIG = {
    ───────────────────────────────────────────────────────────── */
 const gabarit    = id => GABARITS.find(g => g.id === id) || null;
 const prestation = id => PRESTATIONS.find(p => p.id === id) || null;
+
+/* ── QUOI PROPOSER POUR CE VÉHICULE (14/08) ────────────────────────────────
+   « Lorsqu'on choisit une voiture dans la saisie, je ne comprends pas pourquoi
+     on voit encore les lavages motos, sur devis — ce n'est pas bon. » (Edwin)
+   Un lavage moto n'a rien à faire devant une berline, et l'inverse non plus.
+   Les afficher « Sur devis » laissait croire qu'on pouvait les vendre.
+   La CAMIONNETTE, elle, garde les lavages voiture : leur prix se négocie au
+   cas par cas, mais le service existe — Samuel doit pouvoir l'enregistrer.
+   La famille « devis » (moteur, polissage, céramique) n'est plus proposée nulle
+   part : ces services ne sont pas encore vendus, et ils encombraient chaque
+   écran. Pour les remettre : leur donner la famille 'lavage' et des prix. */
+function prestationsPour(gabaritId) {
+  const moto = gabaritId === 'moto';
+  return PRESTATIONS.filter(p => p.famille !== 'devis' && (p.famille === 'moto') === moto);
+}
+/* Celles qui ont un PRIX FERME — pour ce qui se réserve et s'encaisse d'avance
+   (agenda, app cliente). On ne fait pas payer un acompte sur un devis. */
+function prestationsTarifees(gabaritId) {
+  return prestationsPour(gabaritId).filter(p => prix(p.id, gabaritId) != null);
+}
 const option     = id => OPTIONS.find(o => o.id === id) || null;
 const service    = id => SERVICES.find(s => s.id === id) || null;
 
@@ -1514,6 +1534,7 @@ const API = {
   fcfa, prix, prixTexte, prixDes,
   duree, dureeTexte, dureeFourchette,
   min2hm, hm2min, creneaux, occupation,
+  prestationsPour, prestationsTarifees,
   optionsPour, total, acompte,
   carnet, prixCarnet, prixCarnetUnite, economieCarnet,
   recetteMensuelleCarnet, heuresCarnet, porteursPourCouvrir,
@@ -1881,7 +1902,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v20';
+const VERSION = 'v21';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
@@ -2186,11 +2207,9 @@ function vueAccueil() {
       </div>
       <p class="ocr-mini" style="margin:0 0 var(--ocr-e4)">${(() => { const g = OCR.gabarit(resa.gabarit);
         return 'Ex. : ' + esc(g.ex) + (g.places ? ' · ' + esc(g.places) : ''); })()}</p>
-      ${OCR.PRESTATIONS.filter(p => {
-        if (p.famille === 'devis') return false;
-        if ((p.famille === 'moto') !== (resa.gabarit === 'moto')) return false;
-        return true;
-      }).map(p => carteLavage(p, false)).join('')}
+      ${/* Même règle partout depuis le 14/08 : OCR.prestationsPour décide de ce
+           qui s'applique à un type de véhicule, ici comme à l'atelier. */''}
+      ${OCR.prestationsPour(resa.gabarit).map(p => carteLavage(p, false)).join('')}
       <p class="ocr-mini" style="margin:var(--ocr-e4) 0 0">Lavage moteur, polissage et céramique : sur devis —
         <a href="${lienWA('Bonjour OCR Brillance, je voudrais un devis.')}" target="_blank" rel="noopener" style="color:var(--ocr-rouge-texte)">écris-nous sur WhatsApp</a>.</p>
     </div>
@@ -2325,7 +2344,7 @@ function vueEtapePrestation() {
 
     <div class="ocr-surtitre" style="margin-top:var(--ocr-e5)">Le lavage</div>
     <p class="ocr-mini" style="margin:8px 0 var(--ocr-e4)">Appuie sur « Ce qui est fait » pour voir tout ce que comprend chaque formule.</p>
-    ${OCR.PRESTATIONS.filter(p => p.famille !== 'devis' && OCR.prix(p.id, resa.gabarit) != null)
+    ${OCR.prestationsTarifees(resa.gabarit)
       .map(p => carteLavage(p, true)).join('')}
 
     ${opts.length ? `<div class="ocr-surtitre" style="margin-top:var(--ocr-e5)">Options</div>
