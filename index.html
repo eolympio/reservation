@@ -869,7 +869,14 @@ function porteursPourCouvrir(chargesFixes, carnetId, gabaritId) {
    ───────────────────────────────────────────────────────────── */
 const CONFIG = {
   ouvertureMin:  9 * 60,   // 09:00
-  fermetureMin: 21 * 60,   // 21:00 — le dernier lavage doit FINIR à 21 h
+  fermetureMin: 19 * 60,   // 19:00 — le dernier lavage doit FINIR à la fermeture
+  /* L'atelier ouvre à 9 h et ferme à 19 h (Edwin, 14/08). L'équipe, elle,
+     arrive AVANT : entre 8 h 30 et 9 h, pour préparer. Et elle repart après le
+     nettoyage — d'où l'absence d'heure de départ attendue : elle se constate,
+     elle ne se prescrit pas. */
+  arriveeDebut: 8 * 60 + 30,
+  arriveeFin:   9 * 60,
+  pauseMin:     45,        // une pause par jour, obligatoire — jamais bloquante
   pasCreneau:   30,        // grille de réservation, en minutes
   battementMin: 15,        // sortie/entrée véhicule entre deux prestations
   baies:        2,         // 2 véhicules lavés en simultané
@@ -944,7 +951,7 @@ const hm2min = s => { const a = s.split(':').map(Number); return a[0] * 60 + a[1
 /**
  * Heures de DÉBUT possibles : le lavage doit être TERMINÉ à la fermeture.
  * Le battement est appliqué à l'occupation de la baie, pas au dernier créneau
- * (le rangement peut déborder après 21 h).
+ * (le rangement peut déborder après l'heure de fermeture).
  */
 function creneaux(prestationId, gabaritId) {
   const d = duree(prestationId, gabaritId);
@@ -1242,6 +1249,8 @@ const MARQUES = [
       camionnette: ['Super Ace', 'Ace'] } },
   { nom: 'Iveco', gab: { camionnette: ['Daily', 'Eurocargo'] } },
   // motos et tricycles — l'essentiel du parc deux-roues béninois
+  // Ehu Motors en tête : c'est le partenaire, son parc passe tous les jours.
+  { nom: 'Ehu Motors', moto: true, gab: { moto: ['Élégance', 'Citadine', 'Finesse', 'Nova', 'Sport', 'Djabi', 'Dynastie'] } },
   { nom: 'Haojue', moto: true, gab: { moto: ['DK 150', 'Lucky 110', 'HJ 125', 'TR 150', 'KA 150'] } },
   { nom: 'Bajaj', moto: true, gab: { moto: ['Boxer', 'Boxer 100', 'Boxer 150', 'Pulsar', 'CT 100', 'Discover', 'RE (tricycle)'] } },
   { nom: 'Sanili', moto: true, gab: { moto: ['SL 125', 'SL 150', 'Star'] } },
@@ -1293,7 +1302,29 @@ function poserCatalogue(lignes) {
   CATA_SOURCE.forEach(l => ajouter(String(l.marque || '').trim(), String(l.modele || '').trim(),
                                    l.gabarit, true));
   MARQUES.forEach(m => Object.keys(m.gab).forEach(g => m.gab[g].forEach(mo => ajouter(m.nom, mo, g, false))));
-  CATALOGUE = [...parMarque.values()].map(m => ({ ...m, modeles: Object.values(m.gab).flat() }));
+  /* L'ORDRE DES MODÈLES PROPOSÉS COMPTE (13/08) : au comptoir on regarde les
+     huit premières pastilles, pas les vingt-cinq. La base renvoie ses lignes
+     dans un ordre quelconque — on remet donc l'ordre du socle : les tailles
+     du plus courant au plus rare, et dans chaque taille l'ordre choisi à la
+     main (Corolla avant 4Runner, parce que c'est ce qui arrive à l'atelier).
+     Un modèle ajouté par l'atelier passe après, par ordre alphabétique. */
+  const RANG_GAB = ['petite', 'berline', 'grandsuv', 'camionnette', 'moto'];
+  const rangSocle = new Map();
+  let n = 0;
+  MARQUES.forEach(m => Object.keys(m.gab).forEach(g => m.gab[g].forEach(mo =>
+    rangSocle.set(clefTexte(m.nom) + '|' + clefTexte(mo), n++))));
+  const rang = (nom, mo) => {
+    const r = rangSocle.get(clefTexte(nom) + '|' + clefTexte(mo));
+    return r === undefined ? Infinity : r;
+  };
+  CATALOGUE = [...parMarque.values()].map(m => {
+    const ordre = [...RANG_GAB.filter(g => m.gab[g]), ...Object.keys(m.gab).filter(g => !RANG_GAB.includes(g))];
+    const modeles = ordre.flatMap(g => m.gab[g].slice().sort((a, b) => {
+      const ra = rang(m.nom, a), rb = rang(m.nom, b);
+      return ra === rb ? String(a).localeCompare(String(b), 'fr') : ra - rb;
+    }));
+    return { ...m, modeles };
+  });
   return CATALOGUE;
 }
 const catalogue = () => CATALOGUE;
@@ -1379,6 +1410,98 @@ function modeleCanon(marque, modele, gabarit) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   6 bis · RELIRE CE QUI A ÉTÉ ÉCRIT À LA MAIN (13/08)
+   Pour reprendre l'ancien cahier, il faut accepter que « Grand SUV »,
+   « grand suv », « 4x4 » et « pick up » désignent la même taille, et que
+   « Deep cleaning », « deep », « nettoyage profond » désignent la même
+   prestation. On ne demande pas au patron de parler comme la base.
+   ───────────────────────────────────────────────────────────── */
+const ALIAS_GABARIT = {
+  petite:      ['petite', 'petite berline', 'citadine', 'small', 'p'],
+  berline:     ['berline', 'berline suv compact', 'suv compact', 'suv', 'compact', 'b'],
+  grandsuv:    ['grand suv', 'grandsuv', 'gros suv', '4x4', 'pick up', 'pickup', 'pick-up', 'gs'],
+  camionnette: ['camionnette', 'camion', 'fourgon', 'van', 'minibus', 'bus', 'c'],
+  moto:        ['moto', 'motos', 'deux roues', '2 roues', 'scooter', 'm'],
+};
+function trouverGabarit(texte) {
+  const k = clefTexte(texte);
+  if (!k) return null;
+  for (const g of GABARITS) if (clefTexte(g.id) === k || clefTexte(g.court) === k || clefTexte(g.nom) === k) return g.id;
+  for (const [id, alias] of Object.entries(ALIAS_GABARIT))
+    if (alias.some(a => clefTexte(a) === k)) return id;
+  // en dernier ressort : le nom du gabarit contient ce qui est écrit
+  for (const g of GABARITS) if (clefTexte(g.nom).includes(k) && k.length >= 4) return g.id;
+  return null;
+}
+
+const ALIAS_PRESTATION = {
+  express:           ['express', 'lavage express', 'simple', 'basique', 'rapide'],
+  signature:         ['signature', 'lavage signature', 'complet', 'standard'],
+  deep:              ['deep', 'deep cleaning', 'deepcleaning', 'nettoyage profond', 'profond'],
+  interieur:         ['interieur', 'pack interieur', 'interieur seul', 'inside'],
+  exterieur:         ['exterieur', 'pack exterieur', 'exterieur seul'],
+  'moto-express':    ['moto express', 'lavage express moto', 'express moto'],
+  'moto-signature':  ['moto signature', 'lavage signature moto', 'signature moto'],
+  moteur:            ['moteur', 'lavage moteur'],
+  polissage:         ['polish', 'polissage', 'lustrage', 'correction'],
+  ceramique:         ['ceramique', 'protection ceramique', 'ceramic'],
+};
+function trouverPrestation(texte, gabarit) {
+  const k = clefTexte(texte);
+  if (!k) return null;
+  let id = null;
+  const p = PRESTATIONS.find(x => clefTexte(x.id) === k || clefTexte(x.nom) === k);
+  if (p) id = p.id;
+  if (!id) for (const [cle, alias] of Object.entries(ALIAS_PRESTATION))
+    if (alias.some(a => clefTexte(a) === k)) { id = cle; break; }
+  if (!id) id = PRESTATIONS.map(x => x.id).find(x => k.startsWith(clefTexte(x))) || null;
+  if (!id) return null;
+  // « Express » sur une moto, c'est le tarif moto — et l'inverse est vrai aussi :
+  // c'est la taille qui décide de quelle grille on parle.
+  if (gabarit === 'moto' && (id === 'express' || id === 'signature')) return 'moto-' + id;
+  if (gabarit && gabarit !== 'moto' && id.startsWith('moto-')) return id.slice(5);
+  return id;
+}
+
+/* Le mode de paiement tel qu'il est écrit sur la fiche papier :
+   « KKIAPAY », « MTN », « momo », « espèces », « cash », « carnet ». */
+const ALIAS_PAIEMENT = {
+  kkiapay: ['kkiapay', 'kkia', 'momo', 'mtn', 'mtn momo', 'moov', 'moov money', 'celtiis',
+            'mobile money', 'mobilemoney', 'mm', 'en ligne'],
+  especes: ['especes', 'espece', 'cash', 'liquide', 'main', 'en main', 'comptant'],
+  carnet:  ['carnet', 'abonnement', 'privilege'],
+};
+function trouverPaiement(texte) {
+  const k = clefTexte(texte);
+  if (!k) return null;
+  for (const [id, alias] of Object.entries(ALIAS_PAIEMENT))
+    if (alias.some(a => clefTexte(a) === k)) return id;
+  for (const [id, alias] of Object.entries(ALIAS_PAIEMENT))
+    if (alias.some(a => k.includes(clefTexte(a)) && clefTexte(a).length >= 4)) return id;
+  return null;
+}
+
+/* Une date écrite à la main : 13/08/2026, 13-08-26, 2026-08-13, 13.08.26 */
+function lireDate(texte) {
+  const t = String(texte || '').trim();
+  if (!t) return null;
+  let m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+  m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+  if (m) {
+    const an = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${an}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+/* Un montant écrit à la main : « 8 000 », « 8000 F », « 8.000 », « 8 000 FCFA » */
+function lireMontant(texte) {
+  const n = String(texte == null ? '' : texte).replace(/[^\d]/g, '');
+  return n === '' ? null : parseInt(n, 10);
+}
+
+/* ─────────────────────────────────────────────────────────────
    7 · EXPORT
    ───────────────────────────────────────────────────────────── */
 const API = {
@@ -1396,6 +1519,7 @@ const API = {
   GROUPES_LAVAGE, groupeLavage,
   MARQUES, marques, modeles, marqueCanon, modeleCanon, trouverMarque, gabaritDe,
   poserCatalogue, catalogue, catalogueSource, clefTexte,
+  trouverGabarit, trouverPrestation, trouverPaiement, lireDate, lireMontant,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
@@ -1754,7 +1878,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v15';
+const VERSION = 'v17';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
@@ -1923,44 +2047,98 @@ async function chargerCatalogue() {
   } catch (e) {}
 }
 
-/* Suggestions marque/modèle : liste native, filtrée en tapant, jamais
-   bloquante, et l'orthographe se remet au propre à la sortie du champ (« toyota »
-   → « Toyota ») pour que le même véhicule ne s'écrive pas de trois façons. */
+/* SUGGESTIONS MARQUE/MODÈLE — DES PASTILLES, PAS UNE <datalist> (13/08)
+   Sur iPhone la liste native est invisible ou capricieuse : « je ne vois pas
+   de modèle après avoir mis Toyota » (Edwin). Le client, lui, n'insistera
+   pas — il partira. On dessine donc nos propres pastilles, toujours visibles,
+   et la saisie libre reste possible. */
+const SUGG_MAX = 8;
+function zoneSuggestions(el) {
+  if (!el) return null;
+  const label = el.closest('label') || el;
+  const hote = label.parentNode;
+  let z = hote.querySelector(':scope > .sugg-mm[data-pour="' + el.id + '"]');
+  if (!z) {
+    z = document.createElement('div');
+    z.className = 'sugg-mm';
+    z.dataset.pour = el.id;
+    z.style.cssText = 'grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 0';
+    hote.insertBefore(z, label.nextSibling);
+  }
+  return z;
+}
 function brancherMarqueModele(elMarque, elModele, gabarit, poserGabarit) {
   if (!elMarque && !elModele) return;
-  const cle = (elMarque ? elMarque.id : 'x') + '-' + (elModele ? elModele.id : 'x');
-  const trouver = (id) => {
-    let d = document.getElementById(id);
-    if (!d) { d = document.createElement('datalist'); d.id = id; document.body.appendChild(d); }
-    return d;
-  };
-  const dlM = trouver('dlm-' + cle), dlD = trouver('dld-' + cle);
-  if (elMarque) { elMarque.setAttribute('list', dlM.id); elMarque.setAttribute('autocomplete', 'off'); }
-  if (elModele) { elModele.setAttribute('list', dlD.id); elModele.setAttribute('autocomplete', 'off'); }
+  if (elMarque) { elMarque.removeAttribute('list'); elMarque.setAttribute('autocomplete', 'off'); }
+  if (elModele) { elModele.removeAttribute('list'); elModele.setAttribute('autocomplete', 'off'); }
+  const zoneM = zoneSuggestions(elMarque), zoneD = zoneSuggestions(elModele);
   const gab = () => (typeof gabarit === 'function' ? gabarit() : gabarit);
-  const opts = vs => [...new Set(vs.filter(Boolean))].slice(0, 200)
-    .map(v => '<option value="' + esc(v) + '"></option>').join('');
-  const peindre = () => {
-    dlM.innerHTML = opts(OCR.marques(gab()));
-    dlD.innerHTML = opts(OCR.modeles(elMarque ? elMarque.value : '', gab()));
+
+  const filtrer = (liste, saisi) => {
+    const k = OCR.clefTexte(saisi || '');
+    const u = [...new Set(liste.filter(Boolean))];
+    if (!k) return u.slice(0, SUGG_MAX);
+    const debut = u.filter(x => OCR.clefTexte(x).startsWith(k));
+    const dedans = u.filter(x => !OCR.clefTexte(x).startsWith(k) && OCR.clefTexte(x).includes(k));
+    return [...debut, ...dedans].slice(0, SUGG_MAX);
   };
-  peindre();
+  const pastilles = (zone, liste, choisir) => {
+    if (!zone) return;
+    const html = liste.map(v => `<button type="button" class="ocr-chip sugg-v"
+      style="padding:7px 12px;font-size:13px">${esc(v)}</button>`).join('');
+    if (zone.dataset.h === html) return;
+    zone.dataset.h = html;
+    zone.innerHTML = html;
+    zone.querySelectorAll('.sugg-v').forEach((b, i) => b.addEventListener('click', () => choisir(liste[i])));
+  };
+  const vide = z => { if (z && z.dataset.h !== '') { z.dataset.h = ''; z.innerHTML = ''; } };
+  const exact = (l, v) => l.length === 1 && OCR.clefTexte(l[0]) === OCR.clefTexte(v);
+
   const deduire = () => {
     if (!poserGabarit) return;
     const ma = elMarque ? elMarque.value : '', mo = elModele ? elModele.value : '';
     const g = OCR.gabaritDe(ma, mo);
     if (g && g !== gab()) poserGabarit(g, [ma, mo].filter(Boolean).join(' '));
   };
+  const peindreM = () => {
+    if (!elMarque) return;
+    const l = filtrer(OCR.marques(gab()), elMarque.value.trim());
+    pastilles(zoneM, exact(l, elMarque.value.trim()) ? [] : l, x => {
+      elMarque.value = x; vide(zoneM); deduire();
+      if (elModele) { elModele.focus(); peindreD(); }
+    });
+    vide(zoneD);
+  };
+  const peindreD = () => {
+    if (!elModele) return;
+    const l = filtrer(OCR.modeles(elMarque ? elMarque.value : '', gab()), elModele.value.trim());
+    pastilles(zoneD, exact(l, elModele.value.trim()) ? [] : l, x => {
+      elModele.value = x; vide(zoneD); deduire();
+    });
+    vide(zoneM);
+  };
+  const peindre = () => {
+    if (elMarque && !elMarque.value.trim()) peindreM();
+    else if (elModele && !elModele.value.trim()) peindreD();
+    else { vide(zoneM); vide(zoneD); }
+  };
+  peindre();
+
   if (elMarque) {
-    elMarque.addEventListener('input', peindre);
+    elMarque.addEventListener('focus', peindreM);
+    elMarque.addEventListener('input', peindreM);
     elMarque.addEventListener('change', () => {
       elMarque.value = OCR.marqueCanon(elMarque.value, gab()); peindre(); deduire();
     });
   }
-  if (elModele) elModele.addEventListener('change', () => {
-    elModele.value = OCR.modeleCanon(elMarque ? elMarque.value : '', elModele.value, gab());
-    deduire();
-  });
+  if (elModele) {
+    elModele.addEventListener('focus', peindreD);
+    elModele.addEventListener('input', peindreD);
+    elModele.addEventListener('change', () => {
+      elModele.value = OCR.modeleCanon(elMarque ? elMarque.value : '', elModele.value, gab());
+      peindreD(); deduire();
+    });
+  }
   return peindre;
 }
 
