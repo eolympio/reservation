@@ -1878,7 +1878,7 @@ let sb;
 /* Numéro de version affiché en bas de l'accueil : le seul moyen fiable de
    savoir, depuis un téléphone, quelle version tourne vraiment après un
    déploiement — sans ça on devine. */
-const VERSION = 'v17';
+const VERSION = 'v18';
 let vue = 'accueil';
 const resa = { gabarit: 'berline', prestation: null, options: [], date: auj(), heure: null,
                nom: '', tel: '', marque: '', modele: '', immat: '', note: '',
@@ -2645,6 +2645,29 @@ const ETAT_RESA = {
 function vueSuivi() {
   const f = suivi.fiche;
   const liste = carnet.slice().reverse();   // la plus récente d'abord
+
+  /* NE JAMAIS RÉÉCRIRE UN CHAMP DANS LEQUEL QUELQU'UN TAPE (14/08).
+     Cet écran se repeint après chaque recherche et après une annulation. S'il
+     se repeint pendant que le client saisit son numéro, la valeur restaurée
+     depuis l'état se recolle DEVANT ce qu'il vient de taper : on obtenait deux
+     numéros bout à bout, et un « Aucune réservation trouvée » incompréhensible.
+     Trouvé le 14/08 en cherchant pourquoi un test échouait une fois sur dix —
+     c'était l'application, pas le test. Quand un champ a le curseur, on ne
+     rafraîchit que la fiche. */
+  const enTrainDeTaper = document.activeElement &&
+    ['sRef', 'sTel'].includes(document.activeElement.id);
+  const zf = $('#zoneFiche');
+  if (enTrainDeTaper && zf) {
+    zf.innerHTML = f === null ? ''
+      : !f ? '<div class="vide">Aucune réservation trouvée avec cette référence et ce numéro.</div>'
+      : ficheResa(f);
+    const bc = $('#btnChercher');
+    if (bc) { bc.disabled = !!suivi.cherche;
+      bc.textContent = suivi.cherche ? 'Recherche…' : 'Retrouver ma réservation'; }
+    brancherFiche();
+    return;
+  }
+
   $('#vue').innerHTML = `
     <div class="ocr-surtitre">Ma réservation</div>
     ${liste.length ? `
